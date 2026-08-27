@@ -1,0 +1,32 @@
+{
+  "name": "ps171-firewall",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PS171 Local Privacy & Safety Firewall for Browser Agents",
+  "type": "module",
+  "scripts": {
+    "build": "npm run typecheck && node scripts/build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:integration": "npm run build && playwright test",
+    "lint": "eslint .",
+    "format:check": "prettier --check .",
+    "serve:test-site": "node scripts/serve-test-site.mjs",
+    "setup:model": "node scripts/setup-model.mjs"
+  },
+  "dependencies": {
+    "onnxruntime-web": "^1.22.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "@typescript-eslint/parser": "^8.20.0",
+    "@types/node": "^22.10.0",
+    "esbuild": "^0.25.0",
+    "eslint": "^9.18.0",
+    "prettier": "^3.5.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0",
+    "jsdom": "^26.0.0"
+  }
+}

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>PS171 Firewall</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main id="app" aria-live="polite">
+      <header>
+        <div>
+          <p class="eyebrow">PS171 LOCAL FIREWALL</p>
+          <h1>Protected</h1>
+        </div>
+        <span id="state" class="state">SCANNING</span>
+      </header>
+      <p class="subtitle">Minimum necessary perception for browser agents.</p>
+      <section class="card">
+        <h2>Browser Sensor</h2>
+        <div id="sensor" class="grid"></div>
+      </section>
+      <section class="card">
+        <h2>Security decision</h2>
+        <div id="decision"></div>
+      </section>
+      <section class="card">
+        <h2>Evidence</h2>
+        <div id="evidence" class="evidence"></div>
+      </section>
+      <section class="card">
+        <h2>Performance</h2>
+        <div id="performance" class="grid"></div>
+      </section>
+      <footer>
+        <span id="source">Source: local content script → service worker</span
+        ><span id="mode">DOM + RULES</span>
+      </footer>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

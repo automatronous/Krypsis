@@ -1,0 +1,6 @@
+{
+  "model": "HuggingFaceTB/SmolVLM-500M-Instruct",
+  "revision": "PIN_REQUIRED",
+  "status": "NOT_INSTALLED",
+  "note": "Inspect the official repository and pin exact ONNX assets plus SHA-256 checksums before download. This command intentionally does not invent filenames or download unverified binaries."
+}
