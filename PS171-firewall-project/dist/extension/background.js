@@ -6,13 +6,26 @@
     /reveal|exfiltrate|show|share|send\s+(?:the\s+)?(?:password|secret|token|system prompt|credentials)/i,
     /you\s+are\s+(?:now\s+)?(?:the\s+)?(?:system|developer|administrator)/i,
     /override\s+(?:the\s+)?(?:policy|safety|security)/i,
-    /disable\s+(?:the\s+)?(?:firewall|security|privacy)/i
+    /disable\s+(?:the\s+)?(?:firewall|security|privacy)/i,
+    // Role-switching attacks
+    /act\s+as\s+(?:a|an|the)\s+\w+/i,
+    /pretend\s+(?:you\s+are|to\s+be)\s+/i,
+    /from\s+now\s+on\s+you\s+(?:are|will)/i,
+    // XML / conversation boundary injection
+    /<\s*(?:system|human|assistant|user|prompt)\s*>/i,
+    /\n{2,}(?:###\s*|Human:\s*|Assistant:\s*|System:\s*)/,
+    // URL-based data exfiltration
+    /https?:\/\/[^\s"'<>]{0,80}\?[^\s"'<>]{0,40}(?:data|token|secret|key|pass)=/i
   ];
   var mediumRisk = [
     /assistant|agent|language model/i,
     /follow these instructions/i,
     /click|type|navigate|send|purchase/i,
-    /do not tell the user/i
+    /do not tell the user/i,
+    /you must|you should|you need to/i,
+    /your (?:task|goal|objective|job) is now/i,
+    /new (?:instructions|directives|commands|task)/i,
+    /remember to (?:always|never)/i
   ];
   function assessInjection(text, source = "page text") {
     const evidence = [];
@@ -210,6 +223,24 @@ ${context.elements.map((e) => `${e.text ?? ""} ${e.ariaLabel ?? ""}`).join("\n")
       regex: /\b\d{1,5}\s+[A-Z][\w.-]+\s+(?:street|st|road|rd|avenue|ave|lane|ln|drive|dr|boulevard|blvd)\b/gi,
       confidence: 0.78,
       reason: "postal address pattern"
+    },
+    {
+      type: "SSN",
+      regex: /\b\d{3}-\d{2}-\d{4}\b/g,
+      confidence: 0.97,
+      reason: "US Social Security Number format (###-##-####)"
+    },
+    {
+      type: "OTHER",
+      regex: /\b[A-Z]{1,2}\d{7,9}\b/g,
+      confidence: 0.72,
+      reason: "passport or government ID number format"
+    },
+    {
+      type: "OTHER",
+      regex: /\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/g,
+      confidence: 0.85,
+      reason: "IPv4 address"
     }
   ];
   function luhn(candidate) {
@@ -313,7 +344,26 @@ ${context.elements.map((e) => `${e.text ?? ""} ${e.ariaLabel ?? ""}`).join("\n")
   }
 
   // extension/src/security/audit.ts
+  var STORAGE_KEY = "ps171_audit";
+  var MAX_EVENTS = 100;
   var events = [];
+  var loaded = false;
+  async function ensureLoaded() {
+    if (loaded) return;
+    loaded = true;
+    try {
+      const result = await chrome.storage.local.get(STORAGE_KEY);
+      const stored = Array.isArray(result[STORAGE_KEY]) ? result[STORAGE_KEY] : [];
+      events.push(...stored.slice(-MAX_EVENTS));
+    } catch {
+    }
+  }
+  function persist() {
+    try {
+      void chrome.storage.local.set({ [STORAGE_KEY]: events.slice(-MAX_EVENTS) });
+    } catch {
+    }
+  }
   function audit(event) {
     const safe = {
       ...event,
@@ -322,20 +372,44 @@ ${context.elements.map((e) => `${e.text ?? ""} ${e.ariaLabel ?? ""}`).join("\n")
       timestamp: Date.now()
     };
     events.push(safe);
-    if (events.length > 100) events.shift();
+    if (events.length > MAX_EVENTS) events.shift();
+    persist();
     return safe;
   }
-  function getAuditEvents() {
+  async function getAuditEvents() {
+    await ensureLoaded();
     return events.map((event) => ({ ...event, evidence: [...event.evidence] }));
   }
 
   // extension/src/background/background.ts
+  var POLICY_STORAGE_KEY = "ps171_user_policy";
   var contexts = /* @__PURE__ */ new Map();
   var defaultPolicy = {
     deniedOrigins: [],
     allowlistedOrigins: [],
     confirmMedium: false
   };
+  var userPolicy = { ...defaultPolicy };
+  async function loadUserPolicy() {
+    try {
+      const result = await chrome.storage.local.get(POLICY_STORAGE_KEY);
+      const stored = result[POLICY_STORAGE_KEY];
+      if (stored && typeof stored === "object") {
+        userPolicy = {
+          deniedOrigins: Array.isArray(stored.deniedOrigins) ? stored.deniedOrigins : [],
+          allowlistedOrigins: Array.isArray(stored.allowlistedOrigins) ? stored.allowlistedOrigins : [],
+          confirmMedium: typeof stored.confirmMedium === "boolean" ? stored.confirmMedium : false
+        };
+      }
+    } catch {
+    }
+  }
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "local" && POLICY_STORAGE_KEY in changes) {
+      void loadUserPolicy();
+    }
+  });
+  void loadUserPolicy();
   async function handleContext(context, tabId) {
     const injection = assessPageInjection(context);
     const sanitized = sanitizeContext(
@@ -345,7 +419,7 @@ ${context.elements.map((e) => `${e.text ?? ""} ${e.ariaLabel ?? ""}`).join("\n")
     let origin = "unknown";
     try {
       origin = new URL(context.url).origin;
-    } catch (error) {
+    } catch {
       origin = "unknown";
     }
     const policy = evaluatePolicy({
@@ -354,7 +428,7 @@ ${context.elements.map((e) => `${e.text ?? ""} ${e.ariaLabel ?? ""}`).join("\n")
       pageTrust: Math.max(0, 1 - injection.risk),
       injectionRisk: injection.risk,
       origin,
-      userPolicy: defaultPolicy
+      userPolicy
     });
     if (tabId !== void 0) contexts.set(tabId, { context, policy, sanitized });
     audit({
@@ -391,15 +465,17 @@ ${context.elements.map((e) => `${e.text ?? ""} ${e.ariaLabel ?? ""}`).join("\n")
       }
       if (request.type === "PS171_GET_STATUS") {
         const record = tabId === void 0 ? void 0 : contexts.get(tabId);
-        sendResponse(
-          record ? {
-            context: record.context,
-            policy: record.policy,
-            sanitized: record.sanitized,
-            audit: getAuditEvents()
-          } : { audit: getAuditEvents() }
-        );
-        return false;
+        void getAuditEvents().then((auditEvents) => {
+          sendResponse(
+            record ? {
+              context: record.context,
+              policy: record.policy,
+              sanitized: record.sanitized,
+              audit: auditEvents
+            } : { audit: auditEvents }
+          );
+        });
+        return true;
       }
       if (request.type === "PS171_EVALUATE_ACTION" && request.action) {
         const policy = evaluatePolicy({
@@ -409,7 +485,7 @@ ${context.elements.map((e) => `${e.text ?? ""} ${e.ariaLabel ?? ""}`).join("\n")
           injectionRisk: 0,
           proposedAction: request.action,
           origin: request.action.origin,
-          userPolicy: defaultPolicy
+          userPolicy
         });
         audit({
           type: "ACTION",
@@ -419,6 +495,19 @@ ${context.elements.map((e) => `${e.text ?? ""} ${e.ariaLabel ?? ""}`).join("\n")
           evidence: policy.reasons
         });
         sendResponse(policy);
+        return false;
+      }
+      if (request.type === "PS171_SAVE_POLICY" && request.action === void 0) {
+        const incoming = message.policy;
+        if (incoming) {
+          userPolicy = {
+            deniedOrigins: Array.isArray(incoming.deniedOrigins) ? incoming.deniedOrigins : [],
+            allowlistedOrigins: Array.isArray(incoming.allowlistedOrigins) ? incoming.allowlistedOrigins : [],
+            confirmMedium: typeof incoming.confirmMedium === "boolean" ? incoming.confirmMedium : false
+          };
+          void chrome.storage.local.set({ [POLICY_STORAGE_KEY]: userPolicy });
+          sendResponse({ ok: true });
+        }
         return false;
       }
       return false;

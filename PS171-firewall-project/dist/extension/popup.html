@@ -11,30 +11,64 @@
       <header>
         <div>
           <p class="eyebrow">PS171 LOCAL FIREWALL</p>
-          <h1>Protected</h1>
+          <h1 id="decisionTitle">Protected</h1>
         </div>
-        <span id="state" class="state">SCANNING</span>
+        <div class="header-right">
+          <span id="state" class="state">SCANNING</span>
+          <button id="settingsBtn" class="icon-btn" title="Open Settings" aria-label="Open Settings">⚙</button>
+        </div>
       </header>
       <p class="subtitle">Minimum necessary perception for browser agents.</p>
+
+      <!-- Risk bar -->
+      <div class="risk-bar-wrap" aria-label="Risk score">
+        <div class="risk-bar-track">
+          <div id="riskBar" class="risk-bar-fill" style="width:0%"></div>
+        </div>
+        <span id="riskLabel" class="risk-label">0% risk</span>
+      </div>
+
+      <!-- PII Detection Badges -->
+      <section class="card">
+        <h2>Detected Sensitive Data</h2>
+        <div id="piiBadges" class="badge-grid">
+          <span class="no-data">No PII detected on this page.</span>
+        </div>
+      </section>
+
+      <!-- Browser Sensor -->
       <section class="card">
         <h2>Browser Sensor</h2>
         <div id="sensor" class="grid"></div>
       </section>
+
+      <!-- Security Decision -->
       <section class="card">
-        <h2>Security decision</h2>
+        <h2>Security Decision</h2>
         <div id="decision"></div>
       </section>
+
+      <!-- Evidence -->
       <section class="card">
         <h2>Evidence</h2>
         <div id="evidence" class="evidence"></div>
       </section>
+
+      <!-- Audit Log -->
+      <section class="card">
+        <h2>Recent Activity</h2>
+        <div id="auditLog" class="audit-list"></div>
+      </section>
+
+      <!-- Performance -->
       <section class="card">
         <h2>Performance</h2>
         <div id="performance" class="grid"></div>
       </section>
+
       <footer>
-        <span id="source">Source: local content script → service worker</span
-        ><span id="mode">DOM + RULES</span>
+        <span id="source">Source: local content script → service worker</span>
+        <span id="mode">DOM + RULES</span>
       </footer>
     </main>
     <script src="popup.js"></script>

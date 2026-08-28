@@ -8,6 +8,7 @@ export type PIIType =
   | "PASSWORD"
   | "DOB"
   | "AUTH_TOKEN"
+  | "SSN"
   | "OTHER";
 export type DetectionSource = "DOM" | "TEXT" | "VISION" | "MODEL";
 export type PolicyDecision = "ALLOW" | "SANITIZE" | "CONFIRM" | "BLOCK";

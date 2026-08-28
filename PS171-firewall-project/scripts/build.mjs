@@ -17,10 +17,19 @@ await cp(
   path.join(root, "extension", "popup.css"),
   path.join(out, "popup.css")
 );
+await cp(
+  path.join(root, "extension", "options.html"),
+  path.join(out, "options.html")
+);
+await cp(
+  path.join(root, "extension", "options.css"),
+  path.join(out, "options.css")
+);
 const entries = {
   content: "extension/src/content/content.ts",
   background: "extension/src/background/background.ts",
-  popup: "extension/src/popup/popup.ts"
+  popup: "extension/src/popup/popup.ts",
+  options: "extension/src/popup/options.ts"
 };
 await build({
   entryPoints: entries,
@@ -33,3 +42,4 @@ await build({
   logLevel: "info"
 });
 console.log(`Built extension at ${out}`);
+

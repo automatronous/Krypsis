@@ -56,6 +56,25 @@ const patterns: Array<{
       /\b\d{1,5}\s+[A-Z][\w.-]+\s+(?:street|st|road|rd|avenue|ave|lane|ln|drive|dr|boulevard|blvd)\b/gi,
     confidence: 0.78,
     reason: "postal address pattern"
+  },
+  {
+    type: "SSN",
+    regex: /\b\d{3}-\d{2}-\d{4}\b/g,
+    confidence: 0.97,
+    reason: "US Social Security Number format (###-##-####)"
+  },
+  {
+    type: "OTHER",
+    regex: /\b[A-Z]{1,2}\d{7,9}\b/g,
+    confidence: 0.72,
+    reason: "passport or government ID number format"
+  },
+  {
+    type: "OTHER",
+    regex:
+      /\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/g,
+    confidence: 0.85,
+    reason: "IPv4 address"
   }
 ];
 function luhn(candidate: string): boolean {

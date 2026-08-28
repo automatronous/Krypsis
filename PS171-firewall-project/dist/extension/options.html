@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>PS171 Firewall — Settings</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <main id="app">
+      <header>
+        <div>
+          <p class="eyebrow">PS171 LOCAL FIREWALL</p>
+          <h1>Settings</h1>
+        </div>
+        <span class="badge">v0.1.0</span>
+      </header>
+      <p class="subtitle">Configure the local-first action-safety policy. All settings are stored locally on your device.</p>
+
+      <section class="card">
+        <h2>Action Risk Policy</h2>
+        <label class="toggle-row" for="confirmMedium">
+          <span>
+            <strong>Confirm medium-risk actions</strong>
+            <small>Require your approval before TYPE, SUBMIT, and DOWNLOAD actions.</small>
+          </span>
+          <div class="toggle-wrap">
+            <input type="checkbox" id="confirmMedium" role="switch" aria-checked="false" />
+            <div class="toggle-track"><div class="toggle-thumb"></div></div>
+          </div>
+        </label>
+      </section>
+
+      <section class="card">
+        <h2>Blocked Origins</h2>
+        <p class="help">Actions from these origins are always blocked. One origin per line (e.g. <code>https://evil.com</code>).</p>
+        <textarea id="deniedOrigins" rows="5" placeholder="https://malicious.example.com&#10;https://phishing.test" spellcheck="false"></textarea>
+      </section>
+
+      <section class="card">
+        <h2>Trusted Origins</h2>
+        <p class="help">Actions from these origins skip medium-risk confirmation prompts. One origin per line.</p>
+        <textarea id="allowlistedOrigins" rows="4" placeholder="https://mybank.com&#10;https://company.internal" spellcheck="false"></textarea>
+      </section>
+
+      <section class="card">
+        <h2>Audit Log</h2>
+        <div id="auditLog" class="audit-list" aria-live="polite">
+          <p class="loading">Loading…</p>
+        </div>
+        <div class="audit-actions">
+          <button id="refreshAudit" class="btn-secondary">Refresh</button>
+          <button id="clearAudit" class="btn-danger">Clear log</button>
+          <button id="exportAudit" class="btn-secondary">Export JSON</button>
+        </div>
+      </section>
+
+      <footer>
+        <div id="status" class="status" aria-live="polite"></div>
+        <button id="save" class="btn-primary">Save Settings</button>
+      </footer>
+    </main>
+    <script src="options.js"></script>
+  </body>
+</html>

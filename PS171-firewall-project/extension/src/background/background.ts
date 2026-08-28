@@ -8,6 +8,9 @@ import type {
   PolicyResult,
   UserPolicy
 } from "../types/domain";
+
+const POLICY_STORAGE_KEY = "ps171_user_policy";
+
 const contexts = new Map<
   number,
   {
@@ -16,11 +19,50 @@ const contexts = new Map<
     sanitized: ReturnType<typeof sanitizeContext>;
   }
 >();
+
 const defaultPolicy: UserPolicy = {
   deniedOrigins: [],
   allowlistedOrigins: [],
   confirmMedium: false
 };
+
+/** Cached user policy — updated whenever storage changes. */
+let userPolicy: UserPolicy = { ...defaultPolicy };
+
+/** Load persisted user policy from chrome.storage.local. */
+async function loadUserPolicy(): Promise<void> {
+  try {
+    const result = await chrome.storage.local.get(POLICY_STORAGE_KEY);
+    const stored = result[POLICY_STORAGE_KEY] as UserPolicy | undefined;
+    if (stored && typeof stored === "object") {
+      userPolicy = {
+        deniedOrigins: Array.isArray(stored.deniedOrigins)
+          ? stored.deniedOrigins
+          : [],
+        allowlistedOrigins: Array.isArray(stored.allowlistedOrigins)
+          ? stored.allowlistedOrigins
+          : [],
+        confirmMedium:
+          typeof stored.confirmMedium === "boolean"
+            ? stored.confirmMedium
+            : false
+      };
+    }
+  } catch {
+    // Storage unavailable — keep defaults
+  }
+}
+
+// Hot-reload policy when the user changes settings in the Options page
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && POLICY_STORAGE_KEY in changes) {
+    void loadUserPolicy();
+  }
+});
+
+// Load policy on service worker startup
+void loadUserPolicy();
+
 async function handleContext(
   context: PageContext,
   tabId: number | undefined
@@ -33,7 +75,7 @@ async function handleContext(
   let origin = "unknown";
   try {
     origin = new URL(context.url).origin;
-  } catch (error) {
+  } catch {
     origin = "unknown";
   }
   const policy = evaluatePolicy({
@@ -42,7 +84,7 @@ async function handleContext(
     pageTrust: Math.max(0, 1 - injection.risk),
     injectionRisk: injection.risk,
     origin,
-    userPolicy: defaultPolicy
+    userPolicy
   });
   if (tabId !== undefined) contexts.set(tabId, { context, policy, sanitized });
   audit({
@@ -54,6 +96,7 @@ async function handleContext(
   });
   return policy;
 }
+
 chrome.runtime.onMessage.addListener(
   (message: unknown, sender: unknown, sendResponse) => {
     const senderTabId = (sender as { tab?: { id?: number } }).tab?.id;
@@ -66,6 +109,7 @@ chrome.runtime.onMessage.addListener(
       tabId?: number;
     };
     const tabId = request.tabId ?? senderTabId;
+
     if (request.type === "PS171_CONTEXT" && request.context) {
       void handleContext(request.context, tabId)
         .then(sendResponse)
@@ -85,20 +129,24 @@ chrome.runtime.onMessage.addListener(
         });
       return true;
     }
+
     if (request.type === "PS171_GET_STATUS") {
       const record = tabId === undefined ? undefined : contexts.get(tabId);
-      sendResponse(
-        record
-          ? {
-              context: record.context,
-              policy: record.policy,
-              sanitized: record.sanitized,
-              audit: getAuditEvents()
-            }
-          : { audit: getAuditEvents() }
-      );
-      return false;
+      void getAuditEvents().then((auditEvents) => {
+        sendResponse(
+          record
+            ? {
+                context: record.context,
+                policy: record.policy,
+                sanitized: record.sanitized,
+                audit: auditEvents
+              }
+            : { audit: auditEvents }
+        );
+      });
+      return true;
     }
+
     if (request.type === "PS171_EVALUATE_ACTION" && request.action) {
       const policy = evaluatePolicy({
         taskGoal: request.taskGoal ?? "",
@@ -107,7 +155,7 @@ chrome.runtime.onMessage.addListener(
         injectionRisk: 0,
         proposedAction: request.action,
         origin: request.action.origin,
-        userPolicy: defaultPolicy
+        userPolicy
       });
       audit({
         type: "ACTION",
@@ -119,6 +167,30 @@ chrome.runtime.onMessage.addListener(
       sendResponse(policy);
       return false;
     }
+
+    if (request.type === "PS171_SAVE_POLICY" && request.action === undefined) {
+      const incoming = (message as { policy?: unknown }).policy as
+        | UserPolicy
+        | undefined;
+      if (incoming) {
+        userPolicy = {
+          deniedOrigins: Array.isArray(incoming.deniedOrigins)
+            ? incoming.deniedOrigins
+            : [],
+          allowlistedOrigins: Array.isArray(incoming.allowlistedOrigins)
+            ? incoming.allowlistedOrigins
+            : [],
+          confirmMedium:
+            typeof incoming.confirmMedium === "boolean"
+              ? incoming.confirmMedium
+              : false
+        };
+        void chrome.storage.local.set({ [POLICY_STORAGE_KEY]: userPolicy });
+        sendResponse({ ok: true });
+      }
+      return false;
+    }
+
     return false;
   }
 );

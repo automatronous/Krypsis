@@ -4,13 +4,26 @@ const highRisk = [
   /reveal|exfiltrate|show|share|send\s+(?:the\s+)?(?:password|secret|token|system prompt|credentials)/i,
   /you\s+are\s+(?:now\s+)?(?:the\s+)?(?:system|developer|administrator)/i,
   /override\s+(?:the\s+)?(?:policy|safety|security)/i,
-  /disable\s+(?:the\s+)?(?:firewall|security|privacy)/i
+  /disable\s+(?:the\s+)?(?:firewall|security|privacy)/i,
+  // Role-switching attacks
+  /act\s+as\s+(?:a|an|the)\s+\w+/i,
+  /pretend\s+(?:you\s+are|to\s+be)\s+/i,
+  /from\s+now\s+on\s+you\s+(?:are|will)/i,
+  // XML / conversation boundary injection
+  /<\s*(?:system|human|assistant|user|prompt)\s*>/i,
+  /\n{2,}(?:###\s*|Human:\s*|Assistant:\s*|System:\s*)/,
+  // URL-based data exfiltration
+  /https?:\/\/[^\s"'<>]{0,80}\?[^\s"'<>]{0,40}(?:data|token|secret|key|pass)=/i
 ];
 const mediumRisk = [
   /assistant|agent|language model/i,
   /follow these instructions/i,
   /click|type|navigate|send|purchase/i,
-  /do not tell the user/i
+  /do not tell the user/i,
+  /you must|you should|you need to/i,
+  /your (?:task|goal|objective|job) is now/i,
+  /new (?:instructions|directives|commands|task)/i,
+  /remember to (?:always|never)/i
 ];
 export function assessInjection(
   text: string,

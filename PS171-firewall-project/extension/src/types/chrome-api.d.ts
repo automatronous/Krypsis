@@ -1,6 +1,7 @@
 declare const chrome: {
   runtime: {
     sendMessage(message: unknown): Promise<unknown>;
+    openOptionsPage(): void;
     onMessage: {
       addListener(
         listener: (
@@ -20,8 +21,17 @@ declare const chrome: {
   };
   storage: {
     local: {
-      get(keys?: string[]): Promise<Record<string, unknown>>;
+      get(keys?: string | string[]): Promise<Record<string, unknown>>;
       set(items: Record<string, unknown>): Promise<void>;
+      remove(keys: string | string[]): Promise<void>;
+    };
+    onChanged: {
+      addListener(
+        listener: (
+          changes: Record<string, { oldValue?: unknown; newValue?: unknown }>,
+          area: "local" | "sync" | "session" | "managed"
+        ) => void
+      ): void;
     };
   };
 };

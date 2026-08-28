@@ -3,7 +3,7 @@
   "name": "PS171 Local Privacy & Safety Firewall",
   "version": "0.1.0",
   "description": "A local-first privacy and action-safety firewall for browser agents.",
-  "permissions": ["storage", "activeTab", "scripting"],
+  "permissions": ["storage", "activeTab", "scripting", "tabs"],
   "host_permissions": ["<all_urls>"],
   "background": { "service_worker": "background.js", "type": "module" },
   "action": {
@@ -17,7 +17,7 @@
       "run_at": "document_idle"
     }
   ],
-  "options_page": "popup.html",
+  "options_page": "options.html",
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
   }
