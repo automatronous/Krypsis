@@ -52,9 +52,25 @@
 
         <!-- Redacted screenshot preview -->
         <div id="screenshotWrap" class="screenshot-wrap hidden">
-          <p class="screenshot-label">Redacted screenshot sent to server</p>
-          <img id="screenshotPreview" class="screenshot-img" alt="Redacted screenshot" />
-          <span id="redactionBadge" class="redaction-badge">0 regions redacted</span>
+          <div class="screenshot-header">
+            <span class="screenshot-label">🛡️ Redacted Image Sent to Server</span>
+            <button id="toggleScreenshotBtn" class="btn-xs">🔍 View Full Image</button>
+          </div>
+          <div id="screenshotContainer" class="screenshot-container">
+            <img id="screenshotPreview" class="screenshot-img" alt="Redacted screenshot" />
+            <span id="redactionBadge" class="redaction-badge">0 regions redacted</span>
+          </div>
+        </div>
+
+        <!-- Fullscreen Modal for Redacted Image -->
+        <div id="imageModal" class="image-modal hidden">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h3>Redacted Screenshot Preview</h3>
+              <button id="closeModalBtn" class="close-btn">&times;</button>
+            </div>
+            <img id="modalImage" class="modal-img" alt="Full Redacted Screenshot" />
+          </div>
         </div>
 
         <!-- Server summary -->

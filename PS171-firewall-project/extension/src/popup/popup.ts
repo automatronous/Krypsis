@@ -279,10 +279,36 @@ async function refreshStatus() {
   ].join("");
 }
 
+// ---- Modal viewer helpers ----
+function openImageModal(src: string) {
+  const modal = el("imageModal");
+  const modalImg = el<HTMLImageElement>("modalImage");
+  modalImg.src = src;
+  show("imageModal");
+}
+
+function closeImageModal() {
+  hide("imageModal");
+}
+
 // ---- Wire up events ----
 el("settingsBtn").addEventListener("click", () => void chrome.runtime.openOptionsPage());
 el("runAgent").addEventListener("click", () => void runAgent());
 el("executeAll").addEventListener("click", () => void executeAllActions());
 el("cancelActions").addEventListener("click", () => { hide("actionQueue"); pendingActions = []; setStage("IDLE"); });
+
+// Screenshot viewer modal events
+el("toggleScreenshotBtn").addEventListener("click", () => {
+  const src = el<HTMLImageElement>("screenshotPreview").src;
+  if (src) openImageModal(src);
+});
+el("screenshotPreview").addEventListener("click", () => {
+  const src = el<HTMLImageElement>("screenshotPreview").src;
+  if (src) openImageModal(src);
+});
+el("closeModalBtn").addEventListener("click", closeImageModal);
+el("imageModal").addEventListener("click", (e) => {
+  if (e.target === el("imageModal")) closeImageModal();
+});
 
 void refreshStatus();

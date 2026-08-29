@@ -180,26 +180,110 @@ textarea#taskGoal:focus { border-color: var(--accent-dim); }
   margin: 10px 0;
   position: relative;
 }
+.screenshot-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
 .screenshot-label {
-  font-size: 10px;
-  color: var(--text-muted);
-  margin: 0 0 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #c4d0e5;
+}
+.btn-xs {
+  background: rgba(120, 153, 220, 0.15);
+  border: 1px solid rgba(120, 153, 220, 0.3);
+  color: var(--info);
+  font: 600 10px Inter, sans-serif;
+  padding: 3px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-xs:hover {
+  background: rgba(120, 153, 220, 0.25);
+  color: #fff;
+}
+.screenshot-container {
+  position: relative;
 }
 .screenshot-img {
   width: 100%;
   border-radius: 6px;
   border: 1px solid var(--border);
   display: block;
+  cursor: pointer;
 }
 .redaction-badge {
   position: absolute;
-  top: 24px;
-  right: 6px;
-  background: rgba(255,92,106,0.8);
+  top: 8px;
+  right: 8px;
+  background: rgba(255,92,106,0.9);
   color: #fff;
   font: 700 9px ui-monospace, monospace;
-  padding: 2px 7px;
+  padding: 3px 8px;
   border-radius: 999px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+}
+
+/* Modal for viewing full image */
+.image-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(5, 10, 20, 0.92);
+  backdrop-filter: blur(4px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+}
+.modal-content {
+  background: #0d1829;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  max-width: 95%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: #111d36;
+}
+.modal-header h3 {
+  margin: 0;
+  font-size: 12px;
+  color: #e8eefc;
+  font-weight: 600;
+}
+.close-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 20px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 4px;
+}
+.close-btn:hover {
+  color: #fff;
+}
+.modal-img {
+  max-width: 100%;
+  max-height: 75vh;
+  object-fit: contain;
+  display: block;
 }
 
 /* Agent summary / error */

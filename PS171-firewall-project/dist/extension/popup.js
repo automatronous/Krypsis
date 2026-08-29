@@ -249,6 +249,15 @@
       metric("network", "local only")
     ].join("");
   }
+  function openImageModal(src) {
+    const modal = el("imageModal");
+    const modalImg = el("modalImage");
+    modalImg.src = src;
+    show("imageModal");
+  }
+  function closeImageModal() {
+    hide("imageModal");
+  }
   el("settingsBtn").addEventListener("click", () => void chrome.runtime.openOptionsPage());
   el("runAgent").addEventListener("click", () => void runAgent());
   el("executeAll").addEventListener("click", () => void executeAllActions());
@@ -256,6 +265,18 @@
     hide("actionQueue");
     pendingActions = [];
     setStage("IDLE");
+  });
+  el("toggleScreenshotBtn").addEventListener("click", () => {
+    const src = el("screenshotPreview").src;
+    if (src) openImageModal(src);
+  });
+  el("screenshotPreview").addEventListener("click", () => {
+    const src = el("screenshotPreview").src;
+    if (src) openImageModal(src);
+  });
+  el("closeModalBtn").addEventListener("click", closeImageModal);
+  el("imageModal").addEventListener("click", (e) => {
+    if (e.target === el("imageModal")) closeImageModal();
   });
   void refreshStatus();
 })();
