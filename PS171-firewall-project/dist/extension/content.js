@@ -168,7 +168,11 @@
       )
     ).map((element, index) => {
       const input = element;
-      const id = element.id || `ps171-${index + 1}`;
+      const generatedId = `ps171-${index + 1}`;
+      const id = element.id || generatedId;
+      if (!element.id) {
+        element.setAttribute("data-ps171-id", generatedId);
+      }
       const elementData = {
         id,
         tag: element.tagName.toLowerCase(),
@@ -234,17 +238,29 @@
 
   // extension/src/actions/executor.ts
   function findElement(selector) {
+    if (!selector) return null;
+    const cleanSel = selector.trim();
     try {
-      const el = document.querySelector(selector);
+      const el = document.querySelector(cleanSel);
       if (el) return el;
     } catch {
     }
-    const byId = document.getElementById(selector);
+    const rawId = cleanSel.replace(/^#/, "");
+    const byId = document.getElementById(rawId);
     if (byId) return byId;
-    const byName = document.querySelector(`[name="${selector}"]`);
+    const byPs171Id = document.querySelector(`[data-ps171-id="${rawId}"]`) || document.querySelector(`[data-ps171-id="${cleanSel}"]`);
+    if (byPs171Id) return byPs171Id;
+    const byName = document.querySelector(`[name="${rawId}"]`);
     if (byName) return byName;
-    const byAria = document.querySelector(`[aria-label="${selector}"]`);
+    const byAria = document.querySelector(`[aria-label="${rawId}"]`) || document.querySelector(`[aria-label="${cleanSel}"]`);
     if (byAria) return byAria;
+    const allInteractables = document.querySelectorAll("a, button, input, [role]");
+    for (const item of Array.from(allInteractables)) {
+      const text = (item.textContent ?? "").trim().toLowerCase();
+      if (text && (text === cleanSel.toLowerCase() || text.includes(cleanSel.toLowerCase()))) {
+        return item;
+      }
+    }
     return null;
   }
   function simulateInput(el, value) {

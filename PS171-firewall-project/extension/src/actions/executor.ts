@@ -15,21 +15,41 @@ export interface ExecutionResult {
 }
 
 function findElement(selector: string): Element | null {
-  // Try by CSS selector, then by aria-label, then by visible text
+  if (!selector) return null;
+  const cleanSel = selector.trim();
+
+  // 1. Try direct querySelector
   try {
-    const el = document.querySelector(selector);
+    const el = document.querySelector(cleanSel);
     if (el) return el;
   } catch {
-    // Invalid CSS selector — fall through to text search
+    /* invalid CSS selector format */
   }
-  // Try id or name attribute
-  const byId = document.getElementById(selector);
+
+  // 2. Try by element ID
+  const rawId = cleanSel.replace(/^#/, "");
+  const byId = document.getElementById(rawId);
   if (byId) return byId;
-  const byName = document.querySelector(`[name="${selector}"]`);
+
+  // 3. Try by data-ps171-id attribute (generated during context collection)
+  const byPs171Id = document.querySelector(`[data-ps171-id="${rawId}"]`) || document.querySelector(`[data-ps171-id="${cleanSel}"]`);
+  if (byPs171Id) return byPs171Id;
+
+  // 4. Try by name or aria-label
+  const byName = document.querySelector(`[name="${rawId}"]`);
   if (byName) return byName;
-  // Try by aria-label
-  const byAria = document.querySelector(`[aria-label="${selector}"]`);
+  const byAria = document.querySelector(`[aria-label="${rawId}"]`) || document.querySelector(`[aria-label="${cleanSel}"]`);
   if (byAria) return byAria;
+
+  // 5. Fallback: match by text content (e.g. "Checkout", "Shopping Cart")
+  const allInteractables = document.querySelectorAll("a, button, input, [role]");
+  for (const item of Array.from(allInteractables)) {
+    const text = (item.textContent ?? "").trim().toLowerCase();
+    if (text && (text === cleanSel.toLowerCase() || text.includes(cleanSel.toLowerCase()))) {
+      return item;
+    }
+  }
+
   return null;
 }
 

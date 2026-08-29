@@ -36,7 +36,11 @@ export function collectPageContext(): PageContext {
     )
   ).map((element, index) => {
     const input = element as HTMLInputElement;
-    const id = element.id || `ps171-${index + 1}`;
+    const generatedId = `ps171-${index + 1}`;
+    const id = element.id || generatedId;
+    if (!element.id) {
+      element.setAttribute("data-ps171-id", generatedId);
+    }
     const elementData: PageElement = {
       id,
       tag: element.tagName.toLowerCase(),
