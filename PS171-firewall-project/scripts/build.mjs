@@ -25,6 +25,11 @@ await cp(
   path.join(root, "extension", "options.css"),
   path.join(out, "options.css")
 );
+await cp(
+  path.join(root, "extension", "icons"),
+  path.join(out, "icons"),
+  { recursive: true }
+);
 const entries = {
   content: "extension/src/content/content.ts",
   background: "extension/src/background/background.ts",
