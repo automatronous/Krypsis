@@ -1,5 +1,6 @@
 declare const chrome: {
   runtime: {
+    id?: string;
     sendMessage(message: unknown): Promise<unknown>;
     openOptionsPage(): void;
     onMessage: {

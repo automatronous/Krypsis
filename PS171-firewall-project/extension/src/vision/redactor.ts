@@ -84,10 +84,10 @@ export function computeRedactionRegions(context: PageContext): RedactionRegion[]
       continue;
     }
 
-    // Email / Phone / SSN / User identity input fields → pixelate / blackout
+    // Email / Phone / SSN / User identity input fields → pixelate
     const fieldDescriptor = [el.name, el.placeholder, el.ariaLabel, el.type, el.id].filter(Boolean).join(" ").toLowerCase();
     const hasEmailValue = el.value && /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i.test(el.value);
-    
+
     if (
       el.type === "email" ||
       el.type === "tel" ||
@@ -101,6 +101,24 @@ export function computeRedactionRegions(context: PageContext): RedactionRegion[]
         height: Math.round(height * dpr),
         redactionType: "PIXELATE",
         reason: "personal contact/identity field (email/phone/SSN)"
+      });
+      continue;
+    }
+
+    // Name, Address, DOB, Username fields → pixelate
+    if (
+      /\b(?:first[-_\s]?name|last[-_\s]?name|full[-_\s]?name|given[-_\s]?name|surname|family[-_\s]?name|middle[-_\s]?name)\b/i.test(fieldDescriptor) ||
+      /\b(?:username|user[-_\s]?name|display[-_\s]?name|nickname|handle)\b/i.test(fieldDescriptor) ||
+      /\b(?:address|street|city|state|zip|postcode|postal|country)\b/i.test(fieldDescriptor) ||
+      /\b(?:dob|date[-_\s]?of[-_\s]?birth|birthdate|birthday|birth[-_\s]?day)\b/i.test(fieldDescriptor)
+    ) {
+      regions.push({
+        x: Math.round(x * dpr),
+        y: Math.round(y * dpr),
+        width: Math.round(width * dpr),
+        height: Math.round(height * dpr),
+        redactionType: "PIXELATE",
+        reason: "personal identity field (name/address/DOB/username)"
       });
       continue;
     }

@@ -337,15 +337,30 @@
   // extension/src/content/content.ts
   var mutationCount = 0;
   var timer;
+  var contextInvalidated = false;
+  function isRuntimeAlive() {
+    try {
+      return !!chrome.runtime?.id;
+    } catch {
+      return false;
+    }
+  }
   var report = async () => {
+    if (contextInvalidated || !isRuntimeAlive()) return;
     try {
       const context = collectPageContext();
       context.mutationCount = mutationCount;
       await chrome.runtime.sendMessage({ type: "PS171_CONTEXT", context });
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("context invalidated") || msg.includes("Extension context")) {
+        contextInvalidated = true;
+        observer.disconnect();
+      }
     }
   };
   var observer = new MutationObserver(() => {
+    if (contextInvalidated) return;
     mutationCount += 1;
     if (timer !== void 0) window.clearTimeout(timer);
     timer = window.setTimeout(() => void report(), 350);
@@ -358,6 +373,7 @@
   });
   void report();
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (contextInvalidated || !isRuntimeAlive()) return false;
     if (message === "PS171_GET_CONTEXT") {
       sendResponse(collectPageContext());
       return false;

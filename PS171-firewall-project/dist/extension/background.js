@@ -460,6 +460,17 @@ ${context.elements.map((e) => `${e.text ?? ""} ${e.ariaLabel ?? ""}`).join("\n")
         });
         continue;
       }
+      if (/\b(?:first[-_\s]?name|last[-_\s]?name|full[-_\s]?name|given[-_\s]?name|surname|family[-_\s]?name|middle[-_\s]?name)\b/i.test(fieldDescriptor) || /\b(?:username|user[-_\s]?name|display[-_\s]?name|nickname|handle)\b/i.test(fieldDescriptor) || /\b(?:address|street|city|state|zip|postcode|postal|country)\b/i.test(fieldDescriptor) || /\b(?:dob|date[-_\s]?of[-_\s]?birth|birthdate|birthday|birth[-_\s]?day)\b/i.test(fieldDescriptor)) {
+        regions.push({
+          x: Math.round(x * dpr),
+          y: Math.round(y * dpr),
+          width: Math.round(width * dpr),
+          height: Math.round(height * dpr),
+          redactionType: "PIXELATE",
+          reason: "personal identity field (name/address/DOB/username)"
+        });
+        continue;
+      }
       if (/card|credit|account|iban|routing/i.test(
         [el.name, el.placeholder, el.ariaLabel, el.type].filter(Boolean).join(" ")
       )) {
