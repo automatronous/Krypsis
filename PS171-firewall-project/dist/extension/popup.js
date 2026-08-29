@@ -32,30 +32,37 @@
     pill.textContent = STAGE_LABELS[stage];
     pill.className = `stage-pill stage-${stage.toLowerCase()}`;
   }
+  function getThreatColor(risk) {
+    const pct = Math.round(risk * 100);
+    if (pct >= 80) return { hex: "#ef4444", level: "CRITICAL THREAT", class: "danger" };
+    if (pct >= 60) return { hex: "#f97316", level: "HIGH THREAT", class: "warn" };
+    if (pct >= 30) return { hex: "#f59e0b", level: "MEDIUM RISK", class: "warn" };
+    return { hex: "#10b981", level: "LOW RISK", class: "" };
+  }
   function renderRiskBar(risk) {
     const pct = Math.round(risk * 100);
-    el("riskBar").style.width = `${pct}%`;
+    const threat = getThreatColor(risk);
     const label = el("riskLabel");
-    label.textContent = `${pct}% risk`;
-    label.style.color = pct >= 75 ? "#ff8590" : pct >= 40 ? "#ffd37a" : "#78d6b0";
+    label.textContent = `${pct}% risk (${threat.level})`;
+    label.style.color = threat.hex;
+    const statusDot = el("statusDot");
+    statusDot.className = `status-indicator ${threat.class}`;
+    const dot = statusDot.querySelector(".dot");
+    if (dot) {
+      dot.style.background = threat.hex;
+      dot.style.boxShadow = `0 0 8px ${threat.hex}`;
+    }
   }
   function renderStateBadge(decision) {
-    const state = el("state");
     const title = el("decisionTitle");
-    state.className = "state";
     const map = {
-      BLOCK: ["BLOCKED", "danger", "#ff8590"],
-      CONFIRM: ["CONFIRM", "warn", "#ffd37a"],
-      SANITIZE: ["SANITIZED", "", "#7899dc"],
-      ALLOW: ["PROTECTED", "", "#78d6b0"]
+      BLOCK: ["Blocked", "#ef4444"],
+      CONFIRM: ["Confirmation Required", "#f59e0b"],
+      SANITIZE: ["Sanitized", "#3b82f6"],
+      ALLOW: ["Protected", "#10b981"]
     };
-    const entry = map[decision] ?? ["PROTECTED", "", "#78d6b0"];
-    const label = entry[0];
-    const cls = entry[1];
-    const color = entry[2];
-    state.textContent = label;
-    if (cls) state.classList.add(cls);
-    title.textContent = label.charAt(0) + label.slice(1).toLowerCase();
+    const [label, color] = map[decision] ?? ["Protected", "#10b981"];
+    title.textContent = label;
     title.style.color = color;
   }
   function renderPIIBadges(detections) {
@@ -279,5 +286,60 @@
     if (e.target === el("imageModal")) closeImageModal();
   });
   void refreshStatus();
+  function initWaterSimulation() {
+    const canvas = document.getElementById("waterCanvas");
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener("resize", resize);
+    let time = 0;
+    function draw() {
+      time += 0.015;
+      const w = canvas.width;
+      const h = canvas.height;
+      ctx.fillStyle = "#06090e";
+      ctx.fillRect(0, 0, w, h);
+      ctx.lineWidth = 1.2;
+      const numRipples = 12;
+      for (let i = 0; i < numRipples; i++) {
+        ctx.beginPath();
+        const offset = i / numRipples * Math.PI * 2;
+        const alpha = 0.12 + Math.sin(time + offset) * 0.06;
+        ctx.strokeStyle = `rgba(56, 189, 248, ${Math.max(0.04, alpha)})`;
+        for (let x = 0; x <= w; x += 12) {
+          const y = h / (numRipples + 1) * (i + 1) + Math.sin(x * 0.02 + time * 1.5 + offset) * 14 + Math.cos(x * 0.035 - time * 0.8 + offset) * 8;
+          if (x === 0) {
+            ctx.moveTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
+        }
+        ctx.stroke();
+      }
+      for (let i = 0; i < 8; i++) {
+        ctx.beginPath();
+        const offset = i / 8 * Math.PI * 1.5;
+        const alpha = 0.08 + Math.cos(time * 1.2 + offset) * 0.04;
+        ctx.strokeStyle = `rgba(20, 184, 166, ${Math.max(0.02, alpha)})`;
+        for (let y = 0; y <= h; y += 16) {
+          const x = w / 9 * (i + 1) + Math.sin(y * 0.025 + time * 1.1 + offset) * 12 + Math.sin(y * 0.015 - time * 1.4) * 6;
+          if (y === 0) {
+            ctx.moveTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
+        }
+        ctx.stroke();
+      }
+      requestAnimationFrame(draw);
+    }
+    requestAnimationFrame(draw);
+  }
+  initWaterSimulation();
 })();
 //# sourceMappingURL=popup.js.map

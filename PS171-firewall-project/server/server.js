@@ -82,7 +82,7 @@ INSTRUCTIONS:
 6. If the task cannot be safely completed (ambiguous, risky, or target not visible), return an empty actions array and explain in summary.
 7. Do NOT generate actions that would access, reveal, or transmit the redacted sensitive data.
 
-Return ONLY a valid JSON object matching this exact schema:
+Return ONLY a valid JSON object matching this exact schema (supported types: CLICK, TYPE, SCROLL, NAVIGATE, SUBMIT, INJECT_STYLE):
 {
   "actions": [
     {

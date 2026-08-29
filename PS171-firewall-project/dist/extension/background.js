@@ -90,7 +90,8 @@ ${context.elements.map((e) => `${e.text ?? ""} ${e.ariaLabel ?? ""}`).join("\n")
     PERMISSION_CHANGE: "HIGH",
     PAY: "CRITICAL",
     TRANSFER: "CRITICAL",
-    DELETE: "CRITICAL"
+    DELETE: "CRITICAL",
+    INJECT_STYLE: "LOW"
   };
   function actionRisk(action) {
     return riskMap[action.type];

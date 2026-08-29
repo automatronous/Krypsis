@@ -24,7 +24,8 @@ export type ActionType =
   | "TRANSFER"
   | "DELETE"
   | "PUBLISH"
-  | "PERMISSION_CHANGE";
+  | "PERMISSION_CHANGE"
+  | "INJECT_STYLE";
 export type RiskLevel = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 export interface Rect {
   x: number;

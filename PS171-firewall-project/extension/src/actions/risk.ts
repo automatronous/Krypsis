@@ -11,7 +11,8 @@ const riskMap: Record<ActionType, RiskLevel> = {
   PERMISSION_CHANGE: "HIGH",
   PAY: "CRITICAL",
   TRANSFER: "CRITICAL",
-  DELETE: "CRITICAL"
+  DELETE: "CRITICAL",
+  INJECT_STYLE: "LOW"
 };
 export function actionRisk(action: BrowserAction): RiskLevel {
   return riskMap[action.type];

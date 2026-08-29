@@ -119,6 +119,11 @@ export async function executeAction(
         return { actionIndex: index, type: "SUBMIT", selector: action.selector, success: false, error: "Form not found" };
       }
 
+      case "INJECT_STYLE": {
+        injectPageWaterBackground();
+        return { actionIndex: index, type: "INJECT_STYLE", success: true };
+      }
+
       default:
         return { actionIndex: index, type: action.type, success: false, error: `Unsupported action type: ${action.type}` };
     }
@@ -131,4 +136,85 @@ export async function executeAction(
       error: err instanceof Error ? err.message : "Unknown execution error"
     };
   }
+}
+
+function injectPageWaterBackground() {
+  let canvas = document.getElementById("ps171-water-bg") as HTMLCanvasElement | null;
+  if (!canvas) {
+    canvas = document.createElement("canvas");
+    canvas.id = "ps171-water-bg";
+    canvas.style.position = "fixed";
+    canvas.style.top = "0";
+    canvas.style.left = "0";
+    canvas.style.width = "100vw";
+    canvas.style.height = "100vh";
+    canvas.style.zIndex = "-99999";
+    canvas.style.pointerEvents = "none";
+    document.body.prepend(canvas);
+
+    // Make body background transparent so the canvas water background shows through
+    document.body.style.backgroundColor = "transparent";
+  }
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  function resize() {
+    canvas!.width = window.innerWidth;
+    canvas!.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener("resize", resize);
+
+  let time = 0;
+  function draw() {
+    time += 0.015;
+    const w = canvas!.width;
+    const h = canvas!.height;
+
+    ctx!.fillStyle = "#06090e";
+    ctx!.fillRect(0, 0, w, h);
+
+    ctx!.lineWidth = 1.2;
+    const numRipples = 14;
+    for (let i = 0; i < numRipples; i++) {
+      ctx!.beginPath();
+      const offset = (i / numRipples) * Math.PI * 2;
+      const alpha = 0.15 + Math.sin(time + offset) * 0.08;
+      ctx!.strokeStyle = `rgba(56, 189, 248, ${Math.max(0.05, alpha)})`;
+
+      for (let x = 0; x <= w; x += 12) {
+        const y =
+          (h / (numRipples + 1)) * (i + 1) +
+          Math.sin(x * 0.02 + time * 1.5 + offset) * 16 +
+          Math.cos(x * 0.035 - time * 0.8 + offset) * 10;
+
+        if (x === 0) ctx!.moveTo(x, y);
+        else ctx!.lineTo(x, y);
+      }
+      ctx!.stroke();
+    }
+
+    for (let i = 0; i < 10; i++) {
+      ctx!.beginPath();
+      const offset = (i / 10) * Math.PI * 1.5;
+      const alpha = 0.1 + Math.cos(time * 1.2 + offset) * 0.05;
+      ctx!.strokeStyle = `rgba(20, 184, 166, ${Math.max(0.03, alpha)})`;
+
+      for (let y = 0; y <= h; y += 16) {
+        const x =
+          (w / 11) * (i + 1) +
+          Math.sin(y * 0.025 + time * 1.1 + offset) * 14 +
+          Math.sin(y * 0.015 - time * 1.4) * 8;
+
+        if (y === 0) ctx!.moveTo(x, y);
+        else ctx!.lineTo(x, y);
+      }
+      ctx!.stroke();
+    }
+
+    requestAnimationFrame(draw);
+  }
+
+  requestAnimationFrame(draw);
 }

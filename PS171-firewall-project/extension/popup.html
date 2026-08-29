@@ -7,135 +7,148 @@
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
-    <main id="app" aria-live="polite">
-      <header>
-        <div>
-          <p class="eyebrow">PS171 LOCAL FIREWALL</p>
-          <h1 id="decisionTitle">Protected</h1>
+    <canvas id="waterCanvas" class="water-canvas"></canvas>
+    <div id="app" class="command-window">
+      
+      <!-- Top Bar / Status -->
+      <header class="app-header">
+        <div class="brand">
+          <svg class="brand-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+          <span class="brand-name">PS171 FIREWALL</span>
         </div>
-        <div class="header-right">
-          <span id="state" class="state">SCANNING</span>
-          <button id="settingsBtn" class="icon-btn" title="Open Settings" aria-label="Open Settings">⚙</button>
+        <div class="header-actions">
+          <div id="statusDot" class="status-indicator">
+            <span class="dot"></span>
+            <span id="decisionTitle" class="status-text">Protected</span>
+          </div>
+          <button id="settingsBtn" class="btn-icon" title="Settings (⚙)">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+          </button>
         </div>
       </header>
-      <p class="subtitle">Privacy-preserving vision agent for browser automation.</p>
 
-      <!-- Risk bar -->
-      <div class="risk-bar-wrap" aria-label="Risk score">
-        <div class="risk-bar-track">
-          <div id="riskBar" class="risk-bar-fill" style="width:0%"></div>
-        </div>
-        <span id="riskLabel" class="risk-label">0% risk</span>
-      </div>
-
-      <!-- ============================================================
-           AGENT CONTROL PANEL
-           ============================================================ -->
-      <section class="card agent-card">
-        <h2>🤖 Vision Agent</h2>
-
-        <!-- Task input -->
-        <div class="task-row">
+      <!-- Raycast-style Command Input -->
+      <section class="command-box">
+        <div class="input-wrapper">
+          <svg class="prompt-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
           <textarea
             id="taskGoal"
             rows="2"
-            placeholder="What should the agent do? e.g. Find the checkout button and click it"
+            placeholder="Type task goal (e.g. Click on checkout)..."
             spellcheck="false"
           ></textarea>
         </div>
-
-        <!-- Run button + stage indicator -->
-        <div class="agent-controls">
-          <button id="runAgent" class="btn-primary" aria-label="Run agent">▶ Run Agent</button>
-          <div id="pipelineStage" class="stage-pill stage-idle">IDLE</div>
+        <div class="command-footer">
+          <div id="pipelineStage" class="stage-badge stage-idle">IDLE</div>
+          <button id="runAgent" class="btn-run">
+            <span>Run Agent</span>
+            <kbd class="kbd">⌘↵</kbd>
+          </button>
         </div>
+      </section>
 
-        <!-- Redacted screenshot preview -->
-        <div id="screenshotWrap" class="screenshot-wrap hidden">
-          <div class="screenshot-header">
-            <span class="screenshot-label">🛡️ Redacted Image Sent to Server</span>
-            <button id="toggleScreenshotBtn" class="btn-xs">🔍 View Full Image</button>
+      <!-- Redacted Screenshot Preview Box -->
+      <div id="screenshotWrap" class="preview-card hidden">
+        <div class="preview-header">
+          <div class="preview-title">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21 15 16 10 5 21"/>
+            </svg>
+            <span>Sanitized Screenshot</span>
           </div>
-          <div id="screenshotContainer" class="screenshot-container">
-            <img id="screenshotPreview" class="screenshot-img" alt="Redacted screenshot" />
-            <span id="redactionBadge" class="redaction-badge">0 regions redacted</span>
-          </div>
+          <button id="toggleScreenshotBtn" class="btn-text">View Full</button>
         </div>
+        <div id="screenshotContainer" class="preview-img-container">
+          <img id="screenshotPreview" class="preview-img" alt="Redacted screenshot" />
+          <span id="redactionBadge" class="count-badge">0 redacted</span>
+        </div>
+      </div>
 
-        <!-- Fullscreen Modal for Redacted Image -->
-        <div id="imageModal" class="image-modal hidden">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h3>Redacted Screenshot Preview</h3>
-              <button id="closeModalBtn" class="close-btn">&times;</button>
+      <!-- Fullscreen Modal for Redacted Image -->
+      <div id="imageModal" class="modal-overlay hidden">
+        <div class="modal-box">
+          <div class="modal-top">
+            <span>Redacted Screenshot Payload</span>
+            <button id="closeModalBtn" class="modal-close">&times;</button>
+          </div>
+          <img id="modalImage" class="modal-img" alt="Full Redacted Screenshot" />
+        </div>
+      </div>
+
+      <!-- Agent Summary -->
+      <div id="agentSummary" class="info-banner hidden"></div>
+      <div id="agentError" class="error-banner hidden"></div>
+
+      <!-- Proposed Action Queue -->
+      <div id="actionQueue" class="action-section hidden">
+        <div class="section-header">
+          <span>PROPOSED ACTIONS</span>
+          <span class="action-count-label">Awaiting Confirmation</span>
+        </div>
+        <div id="actionList" class="action-list"></div>
+        <div class="action-bar">
+          <button id="executeAll" class="btn-confirm">Execute Plan</button>
+          <button id="cancelActions" class="btn-cancel">Cancel</button>
+        </div>
+      </div>
+
+      <!-- Execution Results -->
+      <div id="executionResults" class="results-section hidden"></div>
+
+      <!-- Compact Technical Data Sections -->
+      <div class="panel-group">
+        <!-- PII Badges -->
+        <details class="panel" open>
+          <summary class="panel-summary">
+            <span>DOM PII DETECTED</span>
+            <span id="riskLabel" class="panel-meta">0% risk</span>
+          </summary>
+          <div class="panel-body">
+            <div id="piiBadges" class="badge-row">
+              <span class="empty-state">Clean — No DOM PII exposed</span>
             </div>
-            <img id="modalImage" class="modal-img" alt="Full Redacted Screenshot" />
           </div>
-        </div>
+        </details>
 
-        <!-- Server summary -->
-        <div id="agentSummary" class="agent-summary hidden"></div>
-
-        <!-- Agent error -->
-        <div id="agentError" class="agent-error hidden"></div>
-
-        <!-- Action queue -->
-        <div id="actionQueue" class="action-queue hidden">
-          <p class="action-queue-title">Proposed Actions — review and approve</p>
-          <div id="actionList"></div>
-          <div class="action-queue-footer">
-            <button id="executeAll" class="btn-primary">Execute All</button>
-            <button id="cancelActions" class="btn-secondary">Cancel</button>
+        <!-- Security Policy & Evidence -->
+        <details class="panel">
+          <summary class="panel-summary">
+            <span>POLICY & SENSOR TELEMETRY</span>
+          </summary>
+          <div class="panel-body">
+            <div id="decision" class="data-block"></div>
+            <div id="sensor" class="metrics-grid"></div>
+            <div id="evidence" class="evidence-box"></div>
           </div>
-        </div>
+        </details>
 
-        <!-- Execution results -->
-        <div id="executionResults" class="execution-results hidden"></div>
-      </section>
+        <!-- Recent Audit Activity -->
+        <details class="panel">
+          <summary class="panel-summary">
+            <span>AUDIT LOG & PERFORMANCE</span>
+          </summary>
+          <div class="panel-body">
+            <div id="auditLog" class="audit-stream"></div>
+            <div id="performance" class="metrics-grid mt-2"></div>
+          </div>
+        </details>
+      </div>
 
-      <!-- PII Detection Badges -->
-      <section class="card">
-        <h2>Detected Sensitive Data</h2>
-        <div id="piiBadges" class="badge-grid">
-          <span class="no-data">No PII detected on this page.</span>
-        </div>
-      </section>
-
-      <!-- Browser Sensor -->
-      <section class="card">
-        <h2>Browser Sensor</h2>
-        <div id="sensor" class="grid"></div>
-      </section>
-
-      <!-- Security Decision -->
-      <section class="card">
-        <h2>Security Decision</h2>
-        <div id="decision"></div>
-      </section>
-
-      <!-- Evidence -->
-      <section class="card">
-        <h2>Evidence</h2>
-        <div id="evidence" class="evidence"></div>
-      </section>
-
-      <!-- Audit Log -->
-      <section class="card">
-        <h2>Recent Activity</h2>
-        <div id="auditLog" class="audit-list"></div>
-      </section>
-
-      <!-- Performance -->
-      <section class="card">
-        <h2>Performance</h2>
-        <div id="performance" class="grid"></div>
-      </section>
-
-      <footer>
-        <span id="source">Source: local content script → service worker</span>
-        <span id="mode">DOM + RULES + VISION</span>
+      <footer class="app-footer">
+        <span id="source">Local SW + Privacy Pipeline</span>
+        <span id="mode" class="mode-tag">VLM + DOM + RULES</span>
       </footer>
-    </main>
+
+    </div>
     <script src="popup.js"></script>
   </body>
 </html>
