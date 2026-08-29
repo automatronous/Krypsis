@@ -95,6 +95,9 @@ export function collectPageContext(): PageContext {
     changedRegions: [],
     screenshotRegions: [],
     timestamp: Date.now(),
-    mutationCount: 0
+    mutationCount: 0,
+    devicePixelRatio: window.devicePixelRatio || 1,
+    viewportWidth: window.innerWidth,
+    viewportHeight: window.innerHeight
   };
 }

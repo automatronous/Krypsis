@@ -2,7 +2,10 @@ import { assessPageInjection } from "../security/injection";
 import { evaluatePolicy } from "../policy/policy";
 import { sanitizeContext } from "../sanitizer/sanitizer";
 import { audit, getAuditEvents } from "../security/audit";
+import { runAgentPipeline } from "../vision/pipeline";
 import type {
+  AgentAction,
+  AgentRequest,
   BrowserAction,
   PageContext,
   PolicyResult,
@@ -10,6 +13,8 @@ import type {
 } from "../types/domain";
 
 const POLICY_STORAGE_KEY = "ps171_user_policy";
+const SERVER_URL_KEY = "ps171_server_url";
+const DEFAULT_SERVER_URL = "http://localhost:3001";
 
 const contexts = new Map<
   number,
@@ -26,52 +31,46 @@ const defaultPolicy: UserPolicy = {
   confirmMedium: false
 };
 
-/** Cached user policy — updated whenever storage changes. */
 let userPolicy: UserPolicy = { ...defaultPolicy };
+let serverUrl: string = DEFAULT_SERVER_URL;
 
-/** Load persisted user policy from chrome.storage.local. */
-async function loadUserPolicy(): Promise<void> {
+async function loadSettings(): Promise<void> {
   try {
-    const result = await chrome.storage.local.get(POLICY_STORAGE_KEY);
+    const result = await chrome.storage.local.get([
+      POLICY_STORAGE_KEY,
+      SERVER_URL_KEY
+    ]);
     const stored = result[POLICY_STORAGE_KEY] as UserPolicy | undefined;
     if (stored && typeof stored === "object") {
       userPolicy = {
-        deniedOrigins: Array.isArray(stored.deniedOrigins)
-          ? stored.deniedOrigins
-          : [],
-        allowlistedOrigins: Array.isArray(stored.allowlistedOrigins)
-          ? stored.allowlistedOrigins
-          : [],
-        confirmMedium:
-          typeof stored.confirmMedium === "boolean"
-            ? stored.confirmMedium
-            : false
+        deniedOrigins: Array.isArray(stored.deniedOrigins) ? stored.deniedOrigins : [],
+        allowlistedOrigins: Array.isArray(stored.allowlistedOrigins) ? stored.allowlistedOrigins : [],
+        confirmMedium: typeof stored.confirmMedium === "boolean" ? stored.confirmMedium : false
       };
     }
+    if (typeof result[SERVER_URL_KEY] === "string") {
+      serverUrl = result[SERVER_URL_KEY] as string;
+    }
   } catch {
-    // Storage unavailable — keep defaults
+    // Use defaults
   }
 }
 
-// Hot-reload policy when the user changes settings in the Options page
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "local" && POLICY_STORAGE_KEY in changes) {
-    void loadUserPolicy();
+  if (area === "local") {
+    if (POLICY_STORAGE_KEY in changes) void loadSettings();
+    if (SERVER_URL_KEY in changes) void loadSettings();
   }
 });
 
-// Load policy on service worker startup
-void loadUserPolicy();
+void loadSettings();
 
 async function handleContext(
   context: PageContext,
   tabId: number | undefined
 ): Promise<PolicyResult> {
   const injection = assessPageInjection(context);
-  const sanitized = sanitizeContext(
-    context,
-    "complete the user's browser task"
-  );
+  const sanitized = sanitizeContext(context, "complete the user's browser task");
   let origin = "unknown";
   try {
     origin = new URL(context.url).origin;
@@ -107,46 +106,42 @@ chrome.runtime.onMessage.addListener(
       action?: BrowserAction;
       taskGoal?: string;
       tabId?: number;
+      agentRequest?: AgentRequest;
+      agentActions?: AgentAction[];
+      policy?: UserPolicy;
     };
     const tabId = request.tabId ?? senderTabId;
 
+    // --- Regular context update from content script ---
     if (request.type === "PS171_CONTEXT" && request.context) {
       void handleContext(request.context, tabId)
         .then(sendResponse)
-        .catch((error: unknown) => {
+        .catch((err: unknown) => {
           audit({
             type: "ERROR",
             origin: request.context?.url ?? "unknown",
             summary: "Context processing failed",
-            evidence: [error instanceof Error ? error.message : "unknown error"]
+            evidence: [err instanceof Error ? err.message : "unknown error"]
           });
-          sendResponse({
-            decision: "BLOCK",
-            risk: 1,
-            reasons: ["Context processing failed safely."],
-            evidence: []
-          });
+          sendResponse({ decision: "BLOCK", risk: 1, reasons: ["Processing failed."], evidence: [] });
         });
       return true;
     }
 
+    // --- Status query from popup ---
     if (request.type === "PS171_GET_STATUS") {
       const record = tabId === undefined ? undefined : contexts.get(tabId);
       void getAuditEvents().then((auditEvents) => {
         sendResponse(
           record
-            ? {
-                context: record.context,
-                policy: record.policy,
-                sanitized: record.sanitized,
-                audit: auditEvents
-              }
-            : { audit: auditEvents }
+            ? { context: record.context, policy: record.policy, sanitized: record.sanitized, audit: auditEvents, serverUrl }
+            : { audit: auditEvents, serverUrl }
         );
       });
       return true;
     }
 
+    // --- Evaluate a proposed action ---
     if (request.type === "PS171_EVALUATE_ACTION" && request.action) {
       const policy = evaluatePolicy({
         taskGoal: request.taskGoal ?? "",
@@ -168,27 +163,67 @@ chrome.runtime.onMessage.addListener(
       return false;
     }
 
-    if (request.type === "PS171_SAVE_POLICY" && request.action === undefined) {
-      const incoming = (message as { policy?: unknown }).policy as
-        | UserPolicy
-        | undefined;
-      if (incoming) {
-        userPolicy = {
-          deniedOrigins: Array.isArray(incoming.deniedOrigins)
-            ? incoming.deniedOrigins
-            : [],
-          allowlistedOrigins: Array.isArray(incoming.allowlistedOrigins)
-            ? incoming.allowlistedOrigins
-            : [],
-          confirmMedium:
-            typeof incoming.confirmMedium === "boolean"
-              ? incoming.confirmMedium
-              : false
-        };
-        void chrome.storage.local.set({ [POLICY_STORAGE_KEY]: userPolicy });
-        sendResponse({ ok: true });
-      }
+    // --- Save policy from options page ---
+    if (request.type === "PS171_SAVE_POLICY" && request.policy) {
+      userPolicy = {
+        deniedOrigins: Array.isArray(request.policy.deniedOrigins) ? request.policy.deniedOrigins : [],
+        allowlistedOrigins: Array.isArray(request.policy.allowlistedOrigins) ? request.policy.allowlistedOrigins : [],
+        confirmMedium: typeof request.policy.confirmMedium === "boolean" ? request.policy.confirmMedium : false
+      };
+      void chrome.storage.local.set({ [POLICY_STORAGE_KEY]: userPolicy });
+      sendResponse({ ok: true });
       return false;
+    }
+
+    // --- Save server URL from options page ---
+    if (request.type === "PS171_SAVE_SERVER_URL" && typeof (request as { url?: string }).url === "string") {
+      serverUrl = (request as { url: string }).url;
+      void chrome.storage.local.set({ [SERVER_URL_KEY]: serverUrl });
+      sendResponse({ ok: true });
+      return false;
+    }
+
+    // --- Run the full vision agent pipeline ---
+    if (request.type === "PS171_RUN_AGENT" && request.agentRequest && tabId !== undefined) {
+      const agentRequest: AgentRequest = {
+        ...request.agentRequest,
+        serverUrl: request.agentRequest.serverUrl || serverUrl
+      };
+      const record = contexts.get(tabId);
+      if (!record) {
+        sendResponse({ stage: "ERROR", error: "No page context — open a web page first.", actions: [], redactionCount: 0, latencyMs: 0, summary: "" });
+        return false;
+      }
+      void runAgentPipeline({ request: agentRequest, context: record.context, userPolicy })
+        .then(sendResponse)
+        .catch((err: unknown) => {
+          sendResponse({ stage: "ERROR", error: err instanceof Error ? err.message : "Pipeline failed", actions: [], redactionCount: 0, latencyMs: 0, summary: "" });
+        });
+      return true;
+    }
+
+    // --- Execute approved actions in the tab ---
+    if (request.type === "PS171_EXECUTE_ACTIONS" && Array.isArray(request.agentActions) && tabId !== undefined) {
+      const actions = request.agentActions as AgentAction[];
+      const results: unknown[] = [];
+      (async () => {
+        for (let i = 0; i < actions.length; i++) {
+          try {
+            const result = await chrome.tabs.sendMessage(tabId, {
+              type: "PS171_EXECUTE_ACTION",
+              action: actions[i],
+              index: i
+            });
+            results.push(result);
+            // Small delay between actions to let page react
+            if (i < actions.length - 1) await new Promise((r) => setTimeout(r, 600));
+          } catch (err) {
+            results.push({ actionIndex: i, success: false, error: err instanceof Error ? err.message : "failed" });
+          }
+        }
+        sendResponse({ results });
+      })();
+      return true;
     }
 
     return false;

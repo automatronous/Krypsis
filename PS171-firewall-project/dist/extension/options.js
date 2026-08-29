@@ -3,6 +3,8 @@
   // extension/src/popup/options.ts
   var POLICY_STORAGE_KEY = "ps171_user_policy";
   var AUDIT_STORAGE_KEY = "ps171_audit";
+  var SERVER_URL_KEY = "ps171_server_url";
+  var DEFAULT_SERVER_URL = "http://localhost:3001";
   function el(id) {
     return document.getElementById(id);
   }
@@ -15,14 +17,19 @@
     }, 3200);
   }
   async function loadPolicy() {
-    const result = await chrome.storage.local.get(POLICY_STORAGE_KEY);
+    const result = await chrome.storage.local.get([POLICY_STORAGE_KEY, SERVER_URL_KEY]);
     const policy = result[POLICY_STORAGE_KEY];
-    if (!policy) return;
-    const toggle = el("confirmMedium");
-    toggle.checked = policy.confirmMedium ?? false;
-    toggle.setAttribute("aria-checked", String(toggle.checked));
-    el("deniedOrigins").value = (policy.deniedOrigins ?? []).join("\n");
-    el("allowlistedOrigins").value = (policy.allowlistedOrigins ?? []).join("\n");
+    if (policy) {
+      const toggle = el("confirmMedium");
+      toggle.checked = policy.confirmMedium ?? false;
+      toggle.setAttribute("aria-checked", String(toggle.checked));
+      el("deniedOrigins").value = (policy.deniedOrigins ?? []).join("\n");
+      el("allowlistedOrigins").value = (policy.allowlistedOrigins ?? []).join("\n");
+    }
+    const urlField = document.getElementById("serverUrl");
+    if (urlField) {
+      urlField.value = typeof result[SERVER_URL_KEY] === "string" ? result[SERVER_URL_KEY] : DEFAULT_SERVER_URL;
+    }
   }
   function readPolicy() {
     const parseLines = (id) => el(id).value.split("\n").map((s) => s.trim()).filter((s) => s.length > 0 && s.startsWith("http"));
@@ -35,6 +42,15 @@
   async function savePolicy() {
     const policy = readPolicy();
     await chrome.storage.local.set({ [POLICY_STORAGE_KEY]: policy });
+    const urlField = document.getElementById("serverUrl");
+    if (urlField?.value) {
+      const newUrl = urlField.value.trim() || DEFAULT_SERVER_URL;
+      await chrome.storage.local.set({ [SERVER_URL_KEY]: newUrl });
+      try {
+        await chrome.runtime.sendMessage({ type: "PS171_SAVE_SERVER_URL", url: newUrl });
+      } catch {
+      }
+    }
     try {
       await chrome.runtime.sendMessage({ type: "PS171_SAVE_POLICY", policy });
     } catch {

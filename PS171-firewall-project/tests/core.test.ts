@@ -16,7 +16,10 @@ const baseContext: PageContext = {
   changedRegions: [],
   screenshotRegions: [],
   timestamp: 1,
-  mutationCount: 0
+  mutationCount: 0,
+  devicePixelRatio: 1,
+  viewportWidth: 1280,
+  viewportHeight: 800
 };
 const userPolicy = {
   deniedOrigins: [],

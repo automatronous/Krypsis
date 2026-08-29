@@ -100,9 +100,19 @@ textarea {
   transition: border-color 0.2s;
   line-height: 1.6;
 }
-textarea:focus {
-  border-color: var(--accent-dim);
+textarea:focus { border-color: var(--accent-dim); }
+input[type="url"] {
+  width: 100%;
+  background: #111d36;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: #e8eefc;
+  font: 13px ui-monospace, monospace;
+  padding: 9px 12px;
+  outline: none;
+  transition: border-color 0.2s;
 }
+input[type="url"]:focus { border-color: var(--accent-dim); }
 /* Toggle switch */
 .toggle-row {
   display: flex;

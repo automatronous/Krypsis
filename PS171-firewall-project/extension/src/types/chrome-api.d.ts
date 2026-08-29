@@ -18,6 +18,10 @@ declare const chrome: {
       currentWindow?: boolean;
     }): Promise<Array<{ id?: number; url?: string; title?: string }>>;
     sendMessage(tabId: number, message: unknown): Promise<unknown>;
+    captureVisibleTab(
+      windowId?: number | null,
+      options?: { format?: "jpeg" | "png"; quality?: number }
+    ): Promise<string>;
   };
   storage: {
     local: {

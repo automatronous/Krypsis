@@ -75,6 +75,10 @@ export interface PageContext {
   screenshotRegions: Region[];
   timestamp: number;
   mutationCount: number;
+  /** Physical pixels per CSS pixel — used to scale DOM rects to screenshot coords. */
+  devicePixelRatio: number;
+  viewportWidth: number;
+  viewportHeight: number;
 }
 export interface Detection {
   id: string;
@@ -143,4 +147,49 @@ export interface AuditEvent {
   decision?: PolicyDecision;
   summary: string;
   evidence: string[];
+}
+
+// --- Vision pipeline types ---
+
+export type RedactionType = "BLACKOUT" | "BLUR" | "PIXELATE";
+
+export interface RedactionRegion extends Rect {
+  redactionType: RedactionType;
+  reason: string;
+}
+
+export interface AgentAction {
+  type: ActionType;
+  selector?: string;
+  value?: string;
+  label: string;
+  confidence: number;
+  url?: string;
+  scrollY?: number;
+}
+
+export type PipelineStage =
+  | "IDLE"
+  | "CAPTURE"
+  | "REDACT"
+  | "TRANSMIT"
+  | "PLAN"
+  | "CONFIRM"
+  | "EXECUTE"
+  | "DONE"
+  | "ERROR";
+
+export interface AgentResult {
+  actions: AgentAction[];
+  summary: string;
+  redactedScreenshot?: string;
+  redactionCount: number;
+  latencyMs: number;
+  stage: PipelineStage;
+  error?: string;
+}
+
+export interface AgentRequest {
+  taskGoal: string;
+  serverUrl: string;
 }

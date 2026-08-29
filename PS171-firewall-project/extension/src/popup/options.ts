@@ -2,6 +2,8 @@ import type { AuditEvent, UserPolicy } from "../types/domain";
 
 const POLICY_STORAGE_KEY = "ps171_user_policy";
 const AUDIT_STORAGE_KEY = "ps171_audit";
+const SERVER_URL_KEY = "ps171_server_url";
+const DEFAULT_SERVER_URL = "http://localhost:3001";
 
 // --- Element helpers ---
 function el<T extends HTMLElement>(id: string): T {
@@ -16,16 +18,21 @@ function showStatus(msg: string, isError = false): void {
 
 // --- Policy ---
 async function loadPolicy(): Promise<void> {
-  const result = await chrome.storage.local.get(POLICY_STORAGE_KEY);
+  const result = await chrome.storage.local.get([POLICY_STORAGE_KEY, SERVER_URL_KEY]);
   const policy = result[POLICY_STORAGE_KEY] as UserPolicy | undefined;
-  if (!policy) return;
-  const toggle = el<HTMLInputElement>("confirmMedium");
-  toggle.checked = policy.confirmMedium ?? false;
-  toggle.setAttribute("aria-checked", String(toggle.checked));
-  el<HTMLTextAreaElement>("deniedOrigins").value =
-    (policy.deniedOrigins ?? []).join("\n");
-  el<HTMLTextAreaElement>("allowlistedOrigins").value =
-    (policy.allowlistedOrigins ?? []).join("\n");
+  if (policy) {
+    const toggle = el<HTMLInputElement>("confirmMedium");
+    toggle.checked = policy.confirmMedium ?? false;
+    toggle.setAttribute("aria-checked", String(toggle.checked));
+    el<HTMLTextAreaElement>("deniedOrigins").value = (policy.deniedOrigins ?? []).join("\n");
+    el<HTMLTextAreaElement>("allowlistedOrigins").value = (policy.allowlistedOrigins ?? []).join("\n");
+  }
+  const urlField = document.getElementById("serverUrl") as HTMLInputElement | null;
+  if (urlField) {
+    urlField.value = typeof result[SERVER_URL_KEY] === "string"
+      ? (result[SERVER_URL_KEY] as string)
+      : DEFAULT_SERVER_URL;
+  }
 }
 
 function readPolicy(): UserPolicy {
@@ -44,7 +51,15 @@ function readPolicy(): UserPolicy {
 async function savePolicy(): Promise<void> {
   const policy = readPolicy();
   await chrome.storage.local.set({ [POLICY_STORAGE_KEY]: policy });
-  // Also notify the service worker so it hot-reloads without restart
+  // Save server URL
+  const urlField = document.getElementById("serverUrl") as HTMLInputElement | null;
+  if (urlField?.value) {
+    const newUrl = urlField.value.trim() || DEFAULT_SERVER_URL;
+    await chrome.storage.local.set({ [SERVER_URL_KEY]: newUrl });
+    try {
+      await chrome.runtime.sendMessage({ type: "PS171_SAVE_SERVER_URL", url: newUrl });
+    } catch { /* service worker may be sleeping */ }
+  }
   try {
     await chrome.runtime.sendMessage({ type: "PS171_SAVE_POLICY", policy });
   } catch {

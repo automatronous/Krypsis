@@ -18,7 +18,7 @@
           <button id="settingsBtn" class="icon-btn" title="Open Settings" aria-label="Open Settings">⚙</button>
         </div>
       </header>
-      <p class="subtitle">Minimum necessary perception for browser agents.</p>
+      <p class="subtitle">Privacy-preserving vision agent for browser automation.</p>
 
       <!-- Risk bar -->
       <div class="risk-bar-wrap" aria-label="Risk score">
@@ -27,6 +27,55 @@
         </div>
         <span id="riskLabel" class="risk-label">0% risk</span>
       </div>
+
+      <!-- ============================================================
+           AGENT CONTROL PANEL
+           ============================================================ -->
+      <section class="card agent-card">
+        <h2>🤖 Vision Agent</h2>
+
+        <!-- Task input -->
+        <div class="task-row">
+          <textarea
+            id="taskGoal"
+            rows="2"
+            placeholder="What should the agent do? e.g. Find the checkout button and click it"
+            spellcheck="false"
+          ></textarea>
+        </div>
+
+        <!-- Run button + stage indicator -->
+        <div class="agent-controls">
+          <button id="runAgent" class="btn-primary" aria-label="Run agent">▶ Run Agent</button>
+          <div id="pipelineStage" class="stage-pill stage-idle">IDLE</div>
+        </div>
+
+        <!-- Redacted screenshot preview -->
+        <div id="screenshotWrap" class="screenshot-wrap hidden">
+          <p class="screenshot-label">Redacted screenshot sent to server</p>
+          <img id="screenshotPreview" class="screenshot-img" alt="Redacted screenshot" />
+          <span id="redactionBadge" class="redaction-badge">0 regions redacted</span>
+        </div>
+
+        <!-- Server summary -->
+        <div id="agentSummary" class="agent-summary hidden"></div>
+
+        <!-- Agent error -->
+        <div id="agentError" class="agent-error hidden"></div>
+
+        <!-- Action queue -->
+        <div id="actionQueue" class="action-queue hidden">
+          <p class="action-queue-title">Proposed Actions — review and approve</p>
+          <div id="actionList"></div>
+          <div class="action-queue-footer">
+            <button id="executeAll" class="btn-primary">Execute All</button>
+            <button id="cancelActions" class="btn-secondary">Cancel</button>
+          </div>
+        </div>
+
+        <!-- Execution results -->
+        <div id="executionResults" class="execution-results hidden"></div>
+      </section>
 
       <!-- PII Detection Badges -->
       <section class="card">
@@ -68,7 +117,7 @@
 
       <footer>
         <span id="source">Source: local content script → service worker</span>
-        <span id="mode">DOM + RULES</span>
+        <span id="mode">DOM + RULES + VISION</span>
       </footer>
     </main>
     <script src="popup.js"></script>
