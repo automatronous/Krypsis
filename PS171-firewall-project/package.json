@@ -16,17 +16,18 @@
     "setup:model": "node scripts/setup-model.mjs"
   },
   "dependencies": {
+    "@huggingface/transformers": "^4.2.0",
     "onnxruntime-web": "^1.22.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.55.0",
-    "@typescript-eslint/parser": "^8.20.0",
     "@types/node": "^22.10.0",
+    "@typescript-eslint/parser": "^8.20.0",
     "esbuild": "^0.25.0",
     "eslint": "^9.18.0",
+    "jsdom": "^26.0.0",
     "prettier": "^3.5.0",
     "typescript": "^5.7.0",
-    "vitest": "^3.0.0",
-    "jsdom": "^26.0.0"
+    "vitest": "^3.0.0"
   }
 }

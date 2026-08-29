@@ -13,6 +13,7 @@
 
 import { captureActiveTab } from "./capture";
 import { computeRedactionRegions, redactScreenshot } from "./redactor";
+import { detectSensitiveRegionsML } from "./localModel";
 import { evaluatePolicy } from "../policy/policy";
 import { audit } from "../security/audit";
 import type {
@@ -119,7 +120,10 @@ export async function runAgentPipeline(
   }
 
   // --- Stage 2: Detect + Redact ---
-  const regions = computeRedactionRegions(context);
+  const domRegions = computeRedactionRegions(context);
+  const mlRegions = await detectSensitiveRegionsML(screenshotDataUrl);
+  const regions = [...domRegions, ...mlRegions];
+
   let redactedDataUrl: string;
   let redactionCount: number;
   try {
