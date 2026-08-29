@@ -13,7 +13,9 @@
     "lint": "eslint .",
     "format:check": "prettier --check .",
     "serve:test-site": "node scripts/serve-test-site.mjs",
-    "setup:model": "node scripts/setup-model.mjs"
+    "setup:model": "node scripts/setup-model.mjs",
+    "dev": "concurrently --names \"VLM-SERVER,TEST-SITE\" --prefix-colors \"cyan,magenta\" \"npm start --prefix server\" \"npm run serve:test-site\"",
+    "start": "npm run dev"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.2.0",
@@ -23,6 +25,7 @@
     "@playwright/test": "^1.55.0",
     "@types/node": "^22.10.0",
     "@typescript-eslint/parser": "^8.20.0",
+    "concurrently": "^10.0.5",
     "esbuild": "^0.25.0",
     "eslint": "^9.18.0",
     "jsdom": "^26.0.0",
