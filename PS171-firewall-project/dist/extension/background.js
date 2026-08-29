@@ -447,6 +447,19 @@ ${context.elements.map((e) => `${e.text ?? ""} ${e.ariaLabel ?? ""}`).join("\n")
         });
         continue;
       }
+      const fieldDescriptor = [el.name, el.placeholder, el.ariaLabel, el.type, el.id].filter(Boolean).join(" ").toLowerCase();
+      const hasEmailValue = el.value && /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i.test(el.value);
+      if (el.type === "email" || el.type === "tel" || hasEmailValue || /email|e-mail|mail|phone|mobile|telephone|ssn|social-security/i.test(fieldDescriptor)) {
+        regions.push({
+          x: Math.round(x * dpr),
+          y: Math.round(y * dpr),
+          width: Math.round(width * dpr),
+          height: Math.round(height * dpr),
+          redactionType: "PIXELATE",
+          reason: "personal contact/identity field (email/phone/SSN)"
+        });
+        continue;
+      }
       if (/card|credit|account|iban|routing/i.test(
         [el.name, el.placeholder, el.ariaLabel, el.type].filter(Boolean).join(" ")
       )) {
