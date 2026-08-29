@@ -33834,14 +33834,29 @@ ${fake_token_around_image}${global_img_token}` + image_token.repeat(image_seq_le
           ...request.agentRequest,
           serverUrl: request.agentRequest.serverUrl || serverUrl
         };
-        const record = contexts.get(tabId);
-        if (!record) {
-          sendResponse({ stage: "ERROR", error: "No page context \u2014 open a web page first.", actions: [], redactionCount: 0, latencyMs: 0, summary: "" });
-          return false;
-        }
-        void runAgentPipeline({ request: agentRequest, context: record.context, userPolicy }).then(sendResponse).catch((err) => {
-          sendResponse({ stage: "ERROR", error: err instanceof Error ? err.message : "Pipeline failed", actions: [], redactionCount: 0, latencyMs: 0, summary: "" });
-        });
+        (async () => {
+          let record = contexts.get(tabId);
+          if (!record) {
+            try {
+              const ctx = await chrome.tabs.sendMessage(tabId, "PS171_GET_CONTEXT");
+              if (ctx) {
+                await handleContext(ctx, tabId);
+                record = contexts.get(tabId);
+              }
+            } catch {
+            }
+          }
+          if (!record) {
+            sendResponse({ stage: "ERROR", error: "No page context \u2014 refresh the active web page first.", actions: [], redactionCount: 0, latencyMs: 0, summary: "" });
+            return;
+          }
+          try {
+            const res = await runAgentPipeline({ request: agentRequest, context: record.context, userPolicy });
+            sendResponse(res);
+          } catch (err) {
+            sendResponse({ stage: "ERROR", error: err instanceof Error ? err.message : "Pipeline failed", actions: [], redactionCount: 0, latencyMs: 0, summary: "" });
+          }
+        })();
         return true;
       }
       if (request.type === "PS171_EXECUTE_ACTIONS" && Array.isArray(request.agentActions) && tabId !== void 0) {

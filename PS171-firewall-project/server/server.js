@@ -54,15 +54,21 @@ const actionSchema = {
   required: ["actions", "summary", "requires_confirmation"]
 };
 
-const model = genai.getGenerativeModel({
-  model: "gemini-1.5-flash",
-  generationConfig: {
-    responseMimeType: "application/json",
-    responseSchema: actionSchema,
-    temperature: 0.1,  // low temp for consistent structured output
-    maxOutputTokens: 1024
-  }
-});
+// Primary and fallback models
+const MODEL_NAMES = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash-latest"];
+let currentModelName = MODEL_NAMES[0];
+
+function getModel(modelName = currentModelName) {
+  return genai.getGenerativeModel({
+    model: modelName,
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema: actionSchema,
+      temperature: 0.1,
+      maxOutputTokens: 1024
+    }
+  });
+}
 
 // ---- Build prompt ----
 function buildPrompt(taskGoal, domSummary, redactedRegions, pageUrl) {
@@ -123,8 +129,30 @@ app.post("/analyze", async (req, res) => {
       }
     };
 
-    const result = await model.generateContent([prompt, imagePart]);
-    const text = result.response.text();
+    let result;
+    let text;
+    let lastErr;
+
+    for (const name of MODEL_NAMES) {
+      try {
+        const modelInst = getModel(name);
+        result = await modelInst.generateContent([prompt, imagePart]);
+        text = result.response.text();
+        currentModelName = name;
+        break;
+      } catch (err) {
+        lastErr = err;
+        if (err?.message?.includes("404")) {
+          console.warn(`Model ${name} not found, trying fallback...`);
+          continue;
+        }
+        throw err;
+      }
+    }
+
+    if (!text) {
+      throw lastErr || new Error("All model fallback attempts failed");
+    }
 
     let parsed;
     try {

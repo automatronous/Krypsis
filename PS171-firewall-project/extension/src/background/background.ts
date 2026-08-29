@@ -189,16 +189,31 @@ chrome.runtime.onMessage.addListener(
         ...request.agentRequest,
         serverUrl: request.agentRequest.serverUrl || serverUrl
       };
-      const record = contexts.get(tabId);
-      if (!record) {
-        sendResponse({ stage: "ERROR", error: "No page context — open a web page first.", actions: [], redactionCount: 0, latencyMs: 0, summary: "" });
-        return false;
-      }
-      void runAgentPipeline({ request: agentRequest, context: record.context, userPolicy })
-        .then(sendResponse)
-        .catch((err: unknown) => {
+      
+      (async () => {
+        let record = contexts.get(tabId);
+        if (!record) {
+          try {
+            const ctx = (await chrome.tabs.sendMessage(tabId, "PS171_GET_CONTEXT")) as PageContext;
+            if (ctx) {
+              await handleContext(ctx, tabId);
+              record = contexts.get(tabId);
+            }
+          } catch {
+            /* content script not available */
+          }
+        }
+        if (!record) {
+          sendResponse({ stage: "ERROR", error: "No page context — refresh the active web page first.", actions: [], redactionCount: 0, latencyMs: 0, summary: "" });
+          return;
+        }
+        try {
+          const res = await runAgentPipeline({ request: agentRequest, context: record.context, userPolicy });
+          sendResponse(res);
+        } catch (err: unknown) {
           sendResponse({ stage: "ERROR", error: err instanceof Error ? err.message : "Pipeline failed", actions: [], redactionCount: 0, latencyMs: 0, summary: "" });
-        });
+        }
+      })();
       return true;
     }
 

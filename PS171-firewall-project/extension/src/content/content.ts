@@ -6,9 +6,13 @@ let mutationCount = 0;
 let timer: number | undefined;
 
 const report = async () => {
-  const context: PageContext = collectPageContext();
-  context.mutationCount = mutationCount;
-  await chrome.runtime.sendMessage({ type: "PS171_CONTEXT", context });
+  try {
+    const context: PageContext = collectPageContext();
+    context.mutationCount = mutationCount;
+    await chrome.runtime.sendMessage({ type: "PS171_CONTEXT", context });
+  } catch {
+    // Extension context invalidated (e.g., extension was reloaded)
+  }
 };
 
 const observer = new MutationObserver(() => {

@@ -322,9 +322,12 @@
   var mutationCount = 0;
   var timer;
   var report = async () => {
-    const context = collectPageContext();
-    context.mutationCount = mutationCount;
-    await chrome.runtime.sendMessage({ type: "PS171_CONTEXT", context });
+    try {
+      const context = collectPageContext();
+      context.mutationCount = mutationCount;
+      await chrome.runtime.sendMessage({ type: "PS171_CONTEXT", context });
+    } catch {
+    }
   };
   var observer = new MutationObserver(() => {
     mutationCount += 1;

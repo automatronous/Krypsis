@@ -191,10 +191,17 @@ async function runAgent() {
       type: "PS171_RUN_AGENT",
       agentRequest: { taskGoal, serverUrl },
       tabId
-    })) as AgentResult;
+    })) as AgentResult | undefined;
 
     clearInterval(stageUpdater);
-    setStage(result.stage);
+    const stage = result?.stage ?? "ERROR";
+    setStage(stage);
+
+    if (!result) {
+      el("agentError").textContent = "Error: Background service worker did not respond. Try reloading the extension in chrome://extensions.";
+      show("agentError");
+      return;
+    }
 
     // Show redacted screenshot
     if (result.redactedScreenshot) {

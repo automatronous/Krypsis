@@ -184,7 +184,13 @@
         tabId
       });
       clearInterval(stageUpdater);
-      setStage(result.stage);
+      const stage = result?.stage ?? "ERROR";
+      setStage(stage);
+      if (!result) {
+        el("agentError").textContent = "Error: Background service worker did not respond. Try reloading the extension in chrome://extensions.";
+        show("agentError");
+        return;
+      }
       if (result.redactedScreenshot) {
         el("screenshotPreview").src = result.redactedScreenshot;
         el("redactionBadge").textContent = `${result.redactionCount} region${result.redactionCount !== 1 ? "s" : ""} redacted`;
