@@ -4,11 +4,11 @@
   background: #090b0e;
   color: #ededed;
   
-  --bg-app: #06090e;
-  --bg-card: rgba(18, 22, 30, 0.85);
-  --bg-input: rgba(24, 28, 36, 0.9);
-  --border: rgba(255, 255, 255, 0.08);
-  --border-focus: #3b82f6;
+  --bg-app: transparent;
+  --bg-card: rgba(12, 16, 24, 0.45);
+  --bg-input: rgba(8, 11, 18, 0.55);
+  --border: rgba(255, 255, 255, 0.07);
+  --border-focus: rgba(59, 130, 246, 0.5);
   
   --text-primary: #ededed;
   --text-secondary: #8a93a0;
@@ -158,13 +158,17 @@ body {
 .command-box {
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   overflow: hidden;
-  transition: border-color 0.2s;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.05);
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .command-box:focus-within {
   border-color: var(--border-focus);
+  box-shadow: 0 4px 24px rgba(59, 130, 246, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.08);
 }
 
 .input-wrapper {
@@ -460,14 +464,17 @@ textarea#taskGoal::placeholder {
 .panel-group {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .panel {
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 8px;
   overflow: hidden;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: background 0.2s, border-color 0.2s;
 }
 
 .panel-summary {

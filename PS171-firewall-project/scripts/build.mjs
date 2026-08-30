@@ -30,6 +30,10 @@ await cp(
   path.join(out, "icons"),
   { recursive: true }
 );
+await cp(
+  path.join(root, "extension", "water_refraction.png"),
+  path.join(out, "water_refraction.png")
+);
 const entries = {
   content: "extension/src/content/content.ts",
   background: "extension/src/background/background.ts",

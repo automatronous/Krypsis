@@ -32,16 +32,18 @@
     pill.textContent = STAGE_LABELS[stage];
     pill.className = `stage-pill stage-${stage.toLowerCase()}`;
   }
+  var currentWaterRgb = { r: 16, g: 185, b: 129 };
   function getThreatColor(risk) {
     const pct = Math.round(risk * 100);
-    if (pct >= 80) return { hex: "#ef4444", level: "CRITICAL THREAT", class: "danger" };
-    if (pct >= 60) return { hex: "#f97316", level: "HIGH THREAT", class: "warn" };
-    if (pct >= 30) return { hex: "#f59e0b", level: "MEDIUM RISK", class: "warn" };
-    return { hex: "#10b981", level: "LOW RISK", class: "" };
+    if (pct >= 80) return { hex: "#ef4444", rgb: { r: 239, g: 68, b: 68 }, level: "CRITICAL THREAT", class: "danger" };
+    if (pct >= 60) return { hex: "#f97316", rgb: { r: 249, g: 115, b: 22 }, level: "HIGH THREAT", class: "warn" };
+    if (pct >= 30) return { hex: "#f59e0b", rgb: { r: 245, g: 158, b: 11 }, level: "MEDIUM RISK", class: "warn" };
+    return { hex: "#10b981", rgb: { r: 16, g: 185, b: 129 }, level: "LOW RISK", class: "" };
   }
   function renderRiskBar(risk) {
     const pct = Math.round(risk * 100);
     const threat = getThreatColor(risk);
+    currentWaterRgb = threat.rgb;
     const label = el("riskLabel");
     label.textContent = `${pct}% risk (${threat.level})`;
     label.style.color = threat.hex;
@@ -291,6 +293,33 @@
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+    const img = new Image();
+    img.src = "water_refraction.png";
+    let patternCanvas = null;
+    let patternCtx = null;
+    img.onload = () => {
+      patternCanvas = document.createElement("canvas");
+      patternCanvas.width = img.width;
+      patternCanvas.height = img.height;
+      patternCtx = patternCanvas.getContext("2d");
+      if (!patternCtx) return;
+      patternCtx.drawImage(img, 0, 0);
+      const imgData = patternCtx.getImageData(0, 0, img.width, img.height);
+      const data = imgData.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i] ?? 0;
+        const g = data[i + 1] ?? 0;
+        const b = data[i + 2] ?? 0;
+        const brightness = (r + g + b) / 3;
+        const causticIntensity = Math.pow(brightness / 255, 2.2);
+        data[i] = 255;
+        data[i + 1] = 255;
+        data[i + 2] = 255;
+        data[i + 3] = Math.min(255, Math.floor(causticIntensity * 160));
+      }
+      patternCtx.putImageData(imgData, 0, 0);
+      requestAnimationFrame(draw);
+    };
     function resize() {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
@@ -299,46 +328,28 @@
     window.addEventListener("resize", resize);
     let time = 0;
     function draw() {
-      time += 0.015;
+      time += 8e-3;
       const w = canvas.width;
       const h = canvas.height;
       ctx.fillStyle = "#06090e";
       ctx.fillRect(0, 0, w, h);
-      ctx.lineWidth = 1.2;
-      const numRipples = 12;
-      for (let i = 0; i < numRipples; i++) {
-        ctx.beginPath();
-        const offset = i / numRipples * Math.PI * 2;
-        const alpha = 0.12 + Math.sin(time + offset) * 0.06;
-        ctx.strokeStyle = `rgba(56, 189, 248, ${Math.max(0.04, alpha)})`;
-        for (let x = 0; x <= w; x += 12) {
-          const y = h / (numRipples + 1) * (i + 1) + Math.sin(x * 0.02 + time * 1.5 + offset) * 14 + Math.cos(x * 0.035 - time * 0.8 + offset) * 8;
-          if (x === 0) {
-            ctx.moveTo(x, y);
-          } else {
-            ctx.lineTo(x, y);
-          }
-        }
-        ctx.stroke();
-      }
-      for (let i = 0; i < 8; i++) {
-        ctx.beginPath();
-        const offset = i / 8 * Math.PI * 1.5;
-        const alpha = 0.08 + Math.cos(time * 1.2 + offset) * 0.04;
-        ctx.strokeStyle = `rgba(20, 184, 166, ${Math.max(0.02, alpha)})`;
-        for (let y = 0; y <= h; y += 16) {
-          const x = w / 9 * (i + 1) + Math.sin(y * 0.025 + time * 1.1 + offset) * 12 + Math.sin(y * 0.015 - time * 1.4) * 6;
-          if (y === 0) {
-            ctx.moveTo(x, y);
-          } else {
-            ctx.lineTo(x, y);
-          }
-        }
-        ctx.stroke();
+      if (patternCanvas) {
+        ctx.save();
+        const shiftX1 = Math.sin(time * 0.8) * 15;
+        const shiftY1 = Math.cos(time * 0.6) * 12;
+        ctx.globalAlpha = 0.28;
+        ctx.drawImage(patternCanvas, shiftX1 - 20, shiftY1 - 20, w + 40, h + 40);
+        const shiftX2 = Math.cos(time * 1.1) * 18;
+        const shiftY2 = Math.sin(time * 0.9) * 15;
+        ctx.globalAlpha = 0.18;
+        ctx.drawImage(patternCanvas, shiftX2 - 20, shiftY2 - 20, w + 40, h + 40);
+        ctx.globalCompositeOperation = "source-atop";
+        ctx.fillStyle = `rgba(${currentWaterRgb.r}, ${currentWaterRgb.g}, ${currentWaterRgb.b}, 0.85)`;
+        ctx.fillRect(0, 0, w, h);
+        ctx.restore();
       }
       requestAnimationFrame(draw);
     }
-    requestAnimationFrame(draw);
   }
   initWaterSimulation();
 })();

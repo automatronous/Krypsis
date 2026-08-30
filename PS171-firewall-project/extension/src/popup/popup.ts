@@ -32,13 +32,15 @@ function setStage(stage: PipelineStage) {
   pill.className = `stage-pill stage-${stage.toLowerCase()}`;
 }
 
+let currentWaterRgb = { r: 16, g: 185, b: 129 }; // Default Green (Low Risk)
+
 // ---- Threat Level Colors ----
-function getThreatColor(risk: number): { hex: string; level: string; class: string } {
+function getThreatColor(risk: number): { hex: string; rgb: { r: number; g: number; b: number }; level: string; class: string } {
   const pct = Math.round(risk * 100);
-  if (pct >= 80) return { hex: "#ef4444", level: "CRITICAL THREAT", class: "danger" }; // Red
-  if (pct >= 60) return { hex: "#f97316", level: "HIGH THREAT", class: "warn" };      // Orange
-  if (pct >= 30) return { hex: "#f59e0b", level: "MEDIUM RISK", class: "warn" };      // Yellow
-  return { hex: "#10b981", level: "LOW RISK", class: "" };                            // Green
+  if (pct >= 80) return { hex: "#ef4444", rgb: { r: 239, g: 68, b: 68 }, level: "CRITICAL THREAT", class: "danger" }; // Red
+  if (pct >= 60) return { hex: "#f97316", rgb: { r: 249, g: 115, b: 22 }, level: "HIGH THREAT", class: "warn" };      // Orange
+  if (pct >= 30) return { hex: "#f59e0b", rgb: { r: 245, g: 158, b: 11 }, level: "MEDIUM RISK", class: "warn" };      // Yellow
+  return { hex: "#10b981", rgb: { r: 16, g: 185, b: 129 }, level: "LOW RISK", class: "" };                           // Green
 }
 
 // ---- Risk bar ----
@@ -46,6 +48,9 @@ function renderRiskBar(risk: number) {
   const pct = Math.round(risk * 100);
   const threat = getThreatColor(risk);
   
+  // Update water canvas texture color tint in real-time
+  currentWaterRgb = threat.rgb;
+
   const label = el("riskLabel");
   label.textContent = `${pct}% risk (${threat.level})`;
   label.style.color = threat.hex;
@@ -325,12 +330,51 @@ el("imageModal").addEventListener("click", (e) => {
 
 void refreshStatus();
 
-// ---- Real-time Unblurred Water Caustic Ripple Engine ----
+// ---- Live Photo-realistic Water Caustic Refraction Engine ----
 function initWaterSimulation() {
   const canvas = document.getElementById("waterCanvas") as HTMLCanvasElement | null;
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
+
+  const img = new Image();
+  img.src = "water_refraction.png";
+
+  let patternCanvas: HTMLCanvasElement | null = null;
+  let patternCtx: CanvasRenderingContext2D | null = null;
+
+  img.onload = () => {
+    // Create offscreen canvas to process texture into pure monochromatic light lines (no blue background color)
+    patternCanvas = document.createElement("canvas");
+    patternCanvas.width = img.width;
+    patternCanvas.height = img.height;
+    patternCtx = patternCanvas.getContext("2d");
+    if (!patternCtx) return;
+
+    patternCtx.drawImage(img, 0, 0);
+    const imgData = patternCtx.getImageData(0, 0, img.width, img.height);
+    const data = imgData.data;
+
+    // Convert blue water photo to pure white caustic light highlights, discarding blue base color
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i] ?? 0;
+      const g = data[i + 1] ?? 0;
+      const b = data[i + 2] ?? 0;
+      
+      // Calculate caustic brightness threshold
+      const brightness = (r + g + b) / 3;
+      const causticIntensity = Math.pow(brightness / 255, 2.2);
+
+      // Make texture monochrome white with variable opacity
+      data[i] = 255;     // Red
+      data[i + 1] = 255; // Green
+      data[i + 2] = 255; // Blue
+      data[i + 3] = Math.min(255, Math.floor(causticIntensity * 160)); // Alpha based on light caustic lines
+    }
+
+    patternCtx.putImageData(imgData, 0, 0);
+    requestAnimationFrame(draw);
+  };
 
   function resize() {
     canvas!.width = window.innerWidth;
@@ -342,65 +386,38 @@ function initWaterSimulation() {
   let time = 0;
 
   function draw() {
-    time += 0.015;
+    time += 0.008;
     const w = canvas!.width;
     const h = canvas!.height;
 
-    // Dark water base fill
+    // Fill dark background color (#06090e)
     ctx!.fillStyle = "#06090e";
     ctx!.fillRect(0, 0, w, h);
 
-    // Draw crisp sharp caustic ripple lines without blur
-    ctx!.lineWidth = 1.2;
+    if (patternCanvas) {
+      ctx!.save();
+      
+      // Animate subtle liquid caustic movement across two layers
+      const shiftX1 = Math.sin(time * 0.8) * 15;
+      const shiftY1 = Math.cos(time * 0.6) * 12;
+      ctx!.globalAlpha = 0.28;
+      ctx!.drawImage(patternCanvas, shiftX1 - 20, shiftY1 - 20, w + 40, h + 40);
 
-    const numRipples = 12;
-    for (let i = 0; i < numRipples; i++) {
-      ctx!.beginPath();
-      const offset = (i / numRipples) * Math.PI * 2;
-      const alpha = 0.12 + Math.sin(time + offset) * 0.06;
-      ctx!.strokeStyle = `rgba(56, 189, 248, ${Math.max(0.04, alpha)})`;
+      const shiftX2 = Math.cos(time * 1.1) * 18;
+      const shiftY2 = Math.sin(time * 0.9) * 15;
+      ctx!.globalAlpha = 0.18;
+      ctx!.drawImage(patternCanvas, shiftX2 - 20, shiftY2 - 20, w + 40, h + 40);
 
-      for (let x = 0; x <= w; x += 12) {
-        const y =
-          (h / (numRipples + 1)) * (i + 1) +
-          Math.sin(x * 0.02 + time * 1.5 + offset) * 14 +
-          Math.cos(x * 0.035 - time * 0.8 + offset) * 8;
+      // Dynamically color-tint the water caustics based on real-time website threat level
+      ctx!.globalCompositeOperation = "source-atop";
+      ctx!.fillStyle = `rgba(${currentWaterRgb.r}, ${currentWaterRgb.g}, ${currentWaterRgb.b}, 0.85)`;
+      ctx!.fillRect(0, 0, w, h);
 
-        if (x === 0) {
-          ctx!.moveTo(x, y);
-        } else {
-          ctx!.lineTo(x, y);
-        }
-      }
-      ctx!.stroke();
-    }
-
-    // Secondary subtle cross-caustic waves
-    for (let i = 0; i < 8; i++) {
-      ctx!.beginPath();
-      const offset = (i / 8) * Math.PI * 1.5;
-      const alpha = 0.08 + Math.cos(time * 1.2 + offset) * 0.04;
-      ctx!.strokeStyle = `rgba(20, 184, 166, ${Math.max(0.02, alpha)})`;
-
-      for (let y = 0; y <= h; y += 16) {
-        const x =
-          (w / 9) * (i + 1) +
-          Math.sin(y * 0.025 + time * 1.1 + offset) * 12 +
-          Math.sin(y * 0.015 - time * 1.4) * 6;
-
-        if (y === 0) {
-          ctx!.moveTo(x, y);
-        } else {
-          ctx!.lineTo(x, y);
-        }
-      }
-      ctx!.stroke();
+      ctx!.restore();
     }
 
     requestAnimationFrame(draw);
   }
-
-  requestAnimationFrame(draw);
 }
 
 initWaterSimulation();
