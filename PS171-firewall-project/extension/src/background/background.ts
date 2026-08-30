@@ -241,6 +241,102 @@ chrome.runtime.onMessage.addListener(
       return true;
     }
 
+    // --- Multi-Step Autonomous Task Chain ---
+    if (request.type === "PS171_RUN_CHAIN" && request.agentRequest && tabId !== undefined) {
+      const MAX_STEPS = (request as { maxSteps?: number }).maxSteps ?? 8;
+      const agentRequest: AgentRequest = {
+        ...request.agentRequest,
+        serverUrl: request.agentRequest.serverUrl || serverUrl
+      };
+
+      (async () => {
+        const steps: Array<{ stepIndex: number; summary: string; actionsExecuted: number; redactedScreenshot?: string; goalMet: boolean }> = [];
+        let abortReason: string | undefined;
+        let goalMet = false;
+
+        for (let step = 0; step < MAX_STEPS; step++) {
+          // Re-fetch fresh page context after page may have navigated
+          let record = contexts.get(tabId);
+          try {
+            const ctx = (await chrome.tabs.sendMessage(tabId, "PS171_GET_CONTEXT")) as PageContext;
+            if (ctx) {
+              await handleContext(ctx, tabId);
+              record = contexts.get(tabId);
+            }
+          } catch {
+            /* content script not injected yet, use last known context */
+          }
+
+          if (!record) {
+            abortReason = "No page context — page may still be loading.";
+            break;
+          }
+
+          // Run the full privacy pipeline (capture → redact → plan)
+          let pipelineResult;
+          try {
+            pipelineResult = await runAgentPipeline({ request: agentRequest, context: record.context, userPolicy });
+          } catch (err) {
+            abortReason = err instanceof Error ? err.message : "Pipeline error";
+            break;
+          }
+
+          if (pipelineResult.stage === "ERROR") {
+            abortReason = pipelineResult.error ?? "Pipeline returned error stage";
+            break;
+          }
+
+          // Fast execution of returned actions
+          const actions = pipelineResult.actions ?? [];
+          let actionsExecuted = 0;
+          let hadNavigationAction = false;
+
+          for (let i = 0; i < actions.length; i++) {
+            const action = actions[i]!;
+            try {
+              await chrome.tabs.sendMessage(tabId, {
+                type: "PS171_EXECUTE_ACTION",
+                action,
+                index: i
+              });
+              actionsExecuted++;
+              if (action.type === "NAVIGATE" || action.type === "SUBMIT") hadNavigationAction = true;
+              if (i < actions.length - 1) await new Promise((r) => setTimeout(r, 200));
+            } catch {
+              /* element may have moved, continue */
+            }
+          }
+
+          // Detect goal completion from VLM summary keywords
+          const summaryLower = (pipelineResult.summary ?? "").toLowerCase();
+          goalMet =
+            summaryLower.includes("goal complete") ||
+            summaryLower.includes("task complete") ||
+            summaryLower.includes("successfully") ||
+            summaryLower.includes("done") ||
+            summaryLower.includes("finished") ||
+            actions.length === 0; // No more actions = goal reached
+
+          steps.push({
+            stepIndex: step + 1,
+            summary: pipelineResult.summary,
+            actionsExecuted,
+            redactedScreenshot: pipelineResult.redactedScreenshot,
+            goalMet
+          });
+
+          if (goalMet) break;
+
+          // Minimal settle delay for fastest execution route
+          const settleMs = hadNavigationAction ? 600 : 300;
+          await new Promise((r) => setTimeout(r, settleMs));
+        }
+
+        sendResponse({ steps, totalSteps: steps.length, goalMet, abortReason });
+      })();
+      return true;
+    }
+
     return false;
   }
 );

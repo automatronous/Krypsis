@@ -194,3 +194,20 @@ export interface AgentRequest {
   taskGoal: string;
   serverUrl: string;
 }
+
+/** One completed step in an autonomous task chain */
+export interface ChainStep {
+  stepIndex: number;
+  summary: string;
+  actionsExecuted: number;
+  redactedScreenshot?: string;
+  goalMet: boolean;
+}
+
+/** Final result of a full autonomous multi-step chain run */
+export interface ChainResult {
+  steps: ChainStep[];
+  totalSteps: number;
+  goalMet: boolean;
+  abortReason?: string;
+}

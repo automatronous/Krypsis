@@ -47,10 +47,18 @@
         </div>
         <div class="command-footer">
           <div id="pipelineStage" class="stage-badge stage-idle">IDLE</div>
-          <button id="runAgent" class="btn-run">
-            <span>Run Agent</span>
-            <kbd class="kbd">⌘↵</kbd>
-          </button>
+          <div class="run-actions">
+            <button id="runAgent" class="btn-run">
+              <span>Run Agent</span>
+              <kbd class="kbd">⌘↵</kbd>
+            </button>
+            <div class="chain-controls">
+              <button id="runChain" class="btn-chain" title="Auto-Chain: run multi-step until goal is met">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                <span>Fast Auto-Chain</span>
+              </button>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -103,6 +111,22 @@
 
       <!-- Execution Results -->
       <div id="executionResults" class="results-section hidden"></div>
+
+      <!-- Autonomous Chain Progress Panel -->
+      <div id="chainPanel" class="chain-panel hidden">
+        <div class="chain-header">
+          <div class="chain-title">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            <span>AUTONOMOUS CHAIN</span>
+          </div>
+          <div class="chain-meta">
+            <span id="chainStepBadge" class="chain-step-badge">Step 0 / 0</span>
+            <button id="abortChain" class="btn-abort">■ Abort</button>
+          </div>
+        </div>
+        <div id="chainGoalStatus" class="chain-goal-status"></div>
+        <div id="chainStepLog" class="chain-step-log"></div>
+      </div>
 
       <!-- Compact Technical Data Sections -->
       <div class="panel-group">

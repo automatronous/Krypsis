@@ -33905,6 +33905,75 @@ ${fake_token_around_image}${global_img_token}` + image_token.repeat(image_seq_le
         })();
         return true;
       }
+      if (request.type === "PS171_RUN_CHAIN" && request.agentRequest && tabId !== void 0) {
+        const MAX_STEPS = request.maxSteps ?? 8;
+        const agentRequest = {
+          ...request.agentRequest,
+          serverUrl: request.agentRequest.serverUrl || serverUrl
+        };
+        (async () => {
+          const steps = [];
+          let abortReason;
+          let goalMet = false;
+          for (let step = 0; step < MAX_STEPS; step++) {
+            let record = contexts.get(tabId);
+            try {
+              const ctx = await chrome.tabs.sendMessage(tabId, "PS171_GET_CONTEXT");
+              if (ctx) {
+                await handleContext(ctx, tabId);
+                record = contexts.get(tabId);
+              }
+            } catch {
+            }
+            if (!record) {
+              abortReason = "No page context \u2014 page may still be loading.";
+              break;
+            }
+            let pipelineResult;
+            try {
+              pipelineResult = await runAgentPipeline({ request: agentRequest, context: record.context, userPolicy });
+            } catch (err) {
+              abortReason = err instanceof Error ? err.message : "Pipeline error";
+              break;
+            }
+            if (pipelineResult.stage === "ERROR") {
+              abortReason = pipelineResult.error ?? "Pipeline returned error stage";
+              break;
+            }
+            const actions = pipelineResult.actions ?? [];
+            let actionsExecuted = 0;
+            let hadNavigationAction = false;
+            for (let i = 0; i < actions.length; i++) {
+              const action = actions[i];
+              try {
+                await chrome.tabs.sendMessage(tabId, {
+                  type: "PS171_EXECUTE_ACTION",
+                  action,
+                  index: i
+                });
+                actionsExecuted++;
+                if (action.type === "NAVIGATE" || action.type === "SUBMIT") hadNavigationAction = true;
+                if (i < actions.length - 1) await new Promise((r) => setTimeout(r, 200));
+              } catch {
+              }
+            }
+            const summaryLower = (pipelineResult.summary ?? "").toLowerCase();
+            goalMet = summaryLower.includes("goal complete") || summaryLower.includes("task complete") || summaryLower.includes("successfully") || summaryLower.includes("done") || summaryLower.includes("finished") || actions.length === 0;
+            steps.push({
+              stepIndex: step + 1,
+              summary: pipelineResult.summary,
+              actionsExecuted,
+              redactedScreenshot: pipelineResult.redactedScreenshot,
+              goalMet
+            });
+            if (goalMet) break;
+            const settleMs = hadNavigationAction ? 600 : 300;
+            await new Promise((r) => setTimeout(r, settleMs));
+          }
+          sendResponse({ steps, totalSteps: steps.length, goalMet, abortReason });
+        })();
+        return true;
+      }
       return false;
     }
   );

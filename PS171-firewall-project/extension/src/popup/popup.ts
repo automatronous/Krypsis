@@ -328,7 +328,91 @@ el("imageModal").addEventListener("click", (e) => {
   if (e.target === el("imageModal")) closeImageModal();
 });
 
+let chainAborted = false;
+
+el("abortChain").addEventListener("click", () => {
+  chainAborted = true;
+  const goal = el("chainGoalStatus");
+  goal.textContent = "⚠ Abort requested — stopping after current step…";
+  goal.className = "chain-goal-status aborted";
+});
+
+// ---- Auto-Chain runner ----
+async function runChain() {
+  const taskGoal = el<HTMLTextAreaElement>("taskGoal").value.trim();
+  if (!taskGoal) { alert("Please enter a task goal first."); return; }
+
+  const statusResp = (await chrome.runtime.sendMessage({ type: "PS171_GET_STATUS" })) as { serverUrl?: string };
+  const serverUrl = statusResp.serverUrl ?? "http://localhost:3001";
+
+  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  const tabId = tabs[0]?.id;
+  if (!tabId) { setStage("ERROR"); return; }
+
+  // Reset UI state
+  chainAborted = false;
+  hide("actionQueue");
+  hide("executionResults");
+  hide("agentSummary");
+  hide("agentError");
+  show("chainPanel");
+  el("chainStepLog").innerHTML = "";
+  el("chainStepBadge").textContent = `Fast Route Active`;
+  const goalStatusEl = el("chainGoalStatus");
+  goalStatusEl.textContent = "⚡ Running autonomous chain…";
+  goalStatusEl.className = "chain-goal-status running";
+
+  el<HTMLButtonElement>("runChain").disabled = true;
+  el<HTMLButtonElement>("runAgent").disabled = true;
+  setStage("EXECUTE");
+
+  try {
+    const result = (await chrome.runtime.sendMessage({
+      type: "PS171_RUN_CHAIN",
+      agentRequest: { taskGoal, serverUrl },
+      tabId
+    })) as { steps: Array<{ stepIndex: number; summary: string; actionsExecuted: number; goalMet: boolean }>; totalSteps: number; goalMet: boolean; abortReason?: string };
+
+    // Render all steps into the log
+    const logEl = el("chainStepLog");
+    for (const step of result.steps ?? []) {
+      el("chainStepBadge").textContent = `Step ${step.stepIndex}`;
+      const entry = document.createElement("div");
+      entry.className = "chain-step-entry";
+      entry.innerHTML = `
+        <span class="chain-step-num">${step.stepIndex}</span>
+        <span class="chain-step-summary ${step.goalMet ? "chain-step-done" : ""}">${safe(step.summary)}</span>
+        <span class="chain-step-actions">${step.actionsExecuted} action${step.actionsExecuted !== 1 ? "s" : ""}</span>
+      `;
+      logEl.appendChild(entry);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    // Final goal status
+    if (result.goalMet) {
+      goalStatusEl.textContent = "✅ Goal completed successfully!";
+      goalStatusEl.className = "chain-goal-status met";
+      setStage("DONE");
+    } else {
+      goalStatusEl.textContent = `⚠ ${result.abortReason ?? "Chain ended without meeting goal."}`;
+      goalStatusEl.className = "chain-goal-status aborted";
+      setStage("DONE");
+    }
+  } catch (err) {
+    goalStatusEl.textContent = `Error: ${err instanceof Error ? err.message : "unknown"}`;
+    goalStatusEl.className = "chain-goal-status aborted";
+    setStage("ERROR");
+  } finally {
+    el<HTMLButtonElement>("runChain").disabled = false;
+    el<HTMLButtonElement>("runAgent").disabled = false;
+    void refreshStatus();
+  }
+}
+
+el("runChain").addEventListener("click", () => void runChain());
+
 void refreshStatus();
+
 
 // ---- Live Photo-realistic Water Caustic Refraction Engine ----
 function initWaterSimulation() {
