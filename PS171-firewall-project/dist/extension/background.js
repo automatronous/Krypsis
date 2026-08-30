@@ -33664,7 +33664,7 @@ ${fake_token_around_image}${global_img_token}` + image_token.repeat(image_seq_le
       });
       return {
         actions: [],
-        summary: "Server unreachable. Check that the PS171 server is running.",
+        summary: "Server unreachable. Check that the Krypsis server is running.",
         redactedScreenshot: redactedDataUrl,
         redactionCount,
         latencyMs: performance.now() - started,

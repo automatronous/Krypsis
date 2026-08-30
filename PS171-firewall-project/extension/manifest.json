@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "PS171 Local Privacy & Safety Firewall",
+  "name": "Krypsis Privacy & Safety Firewall",
   "version": "0.1.0",
   "description": "A local-first privacy and action-safety firewall for browser agents.",
   "permissions": ["storage", "activeTab", "scripting", "tabs"],
@@ -12,7 +12,7 @@
     "128": "icons/icon128.png"
   },
   "action": {
-    "default_title": "PS171 Firewall",
+    "default_title": "Krypsis Firewall",
     "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon16.png",
