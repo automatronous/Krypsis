@@ -461,14 +461,17 @@ ${context.elements.map((e) => `${e.text ?? ""} ${e.ariaLabel ?? ""}`).join("\n")
         });
         continue;
       }
-      if (/\b(?:first[-_\s]?name|last[-_\s]?name|full[-_\s]?name|given[-_\s]?name|surname|family[-_\s]?name|middle[-_\s]?name)\b/i.test(fieldDescriptor) || /\b(?:username|user[-_\s]?name|display[-_\s]?name|nickname|handle)\b/i.test(fieldDescriptor) || /\b(?:address|street|city|state|zip|postcode|postal|country)\b/i.test(fieldDescriptor) || /\b(?:dob|date[-_\s]?of[-_\s]?birth|birthdate|birthday|birth[-_\s]?day)\b/i.test(fieldDescriptor)) {
+      const textStr = (el.text ?? "").trim();
+      const isCapitalizedName = /^[A-Z][a-zA-Z'.-]{1,20}(?:\s+[A-Z][a-zA-Z'.-]{1,20}){1,3}$/.test(textStr);
+      const isProfileHeader = /h1|h2|h3|h4|h5|h6|author|profile|user|name|title|header/i.test(el.tag + " " + (el.id ?? "") + " " + fieldDescriptor);
+      if (/\b(?:first[-_\s]?name|last[-_\s]?name|full[-_\s]?name|given[-_\s]?name|surname|family[-_\s]?name|middle[-_\s]?name)\b/i.test(fieldDescriptor) || /\b(?:username|user[-_\s]?name|display[-_\s]?name|nickname|handle)\b/i.test(fieldDescriptor) || /\b(?:address|street|city|state|zip|postcode|postal|country)\b/i.test(fieldDescriptor) || /\b(?:dob|date[-_\s]?of[-_\s]?birth|birthdate|birthday|birth[-_\s]?day)\b/i.test(fieldDescriptor) || isProfileHeader && isCapitalizedName || isCapitalizedName) {
         regions.push({
           x: Math.round(x * dpr),
           y: Math.round(y * dpr),
           width: Math.round(width * dpr),
           height: Math.round(height * dpr),
           redactionType: "PIXELATE",
-          reason: "personal identity field (name/address/DOB/username)"
+          reason: `person name or identity title (${textStr || "field"})`
         });
         continue;
       }
@@ -485,14 +488,14 @@ ${context.elements.map((e) => `${e.text ?? ""} ${e.ariaLabel ?? ""}`).join("\n")
         });
         continue;
       }
-      if (el.tag === "img" && width >= 40 && height >= 40 && height / width >= 0.7 && height / width <= 1.8) {
+      if ((el.tag === "img" || el.tag === "picture") && width >= 30 && height >= 30) {
         regions.push({
           x: Math.round(x * dpr),
           y: Math.round(y * dpr),
           width: Math.round(width * dpr),
           height: Math.round(height * dpr),
           redactionType: "BLUR",
-          reason: "potential face / profile image"
+          reason: "photo / visual image media"
         });
       }
     }

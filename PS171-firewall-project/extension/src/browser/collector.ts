@@ -32,7 +32,7 @@ function attributes(element: Element): Record<string, string> {
 export function collectPageContext(): PageContext {
   const elements: PageElement[] = Array.from(
     document.querySelectorAll(
-      "button, a, input, textarea, select, [role], [contenteditable='true']"
+      "button, a, input, textarea, select, [role], [contenteditable='true'], img, picture, h1, h2, h3, h4, h5, h6, p, div, span, [class*='name'], [class*='author'], [class*='profile'], [class*='user']"
     )
   ).map((element, index) => {
     const input = element as HTMLInputElement;

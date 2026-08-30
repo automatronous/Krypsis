@@ -38,12 +38,12 @@ const openai = new OpenAI({
 });
 
 const MODEL_NAMES = [
-  process.env.OPENAI_MODEL || "google/gemma-4-27b-it:free",
+  "openrouter/free",
+  "google/gemini-2.0-flash-lite-preview-02-05:free",
+  "meta-llama/llama-3.2-11b-vision-instruct:free",
+  "google/gemma-4-27b-it:free",
   "google/gemma-4-31b-it:free",
-  "google/gemma-4-26b-a4b-it:free",
-  "nvidia/nemotron-3-ultra-550b-a55b:free",
-  "minimax/minimax-m3:free",
-  "openrouter/free"
+  "minimax/minimax-m3:free"
 ];
 
 // ---- Build prompt ----
@@ -132,10 +132,10 @@ app.post("/analyze", async (req, res) => {
               content: userContent
             }
           ],
-          response_format: { type: "json_object" },
           temperature: 0.1,
           max_tokens: 2048
         });
+        console.log(`✓ OpenRouter VLM model succeeded using: ${modelName}`);
         break;
       } catch (err) {
         lastErr = err;
@@ -156,23 +156,38 @@ app.post("/analyze", async (req, res) => {
     try {
       parsed = JSON.parse(content);
     } catch {
-      // Attempt to auto-repair truncated JSON
-      let repaired = content;
-      // Close open string if cut off mid-sentence
-      if ((repaired.match(/"/g) || []).length % 2 !== 0) {
-        repaired += '"';
+      // 1. Try extracting JSON object substring via regex if model added conversational prefix/suffix text
+      const match = content.match(/\{[\s\S]*\}/);
+      if (match) {
+        try {
+          parsed = JSON.parse(match[0]);
+        } catch {
+          /* try auto-repair on match[0] */
+          content = match[0];
+        }
       }
-      // Balance unclosed braces/brackets
-      const openBraces = (repaired.match(/\{/g) || []).length - (repaired.match(/\}/g) || []).length;
-      const openBrackets = (repaired.match(/\[/g) || []).length - (repaired.match(/\]/g) || []).length;
-      repaired += "]".repeat(Math.max(0, openBrackets)) + "}".repeat(Math.max(0, openBraces));
 
-      try {
-        parsed = JSON.parse(repaired);
-        console.log("⚠️ Successfully repaired truncated JSON response");
-      } catch {
-        console.error("Failed to parse VLM response:", content.slice(0, 300));
-        return res.status(500).json({ error: "Model returned invalid JSON", raw: content.slice(0, 300) });
+      if (!parsed) {
+        // 2. Attempt to auto-repair truncated JSON
+        let repaired = content;
+        if ((repaired.match(/"/g) || []).length % 2 !== 0) {
+          repaired += '"';
+        }
+        const openBraces = (repaired.match(/\{/g) || []).length - (repaired.match(/\}/g) || []).length;
+        const openBrackets = (repaired.match(/\[/g) || []).length - (repaired.match(/\]/g) || []).length;
+        repaired += "]".repeat(Math.max(0, openBrackets)) + "}".repeat(Math.max(0, openBraces));
+
+        try {
+          parsed = JSON.parse(repaired);
+          console.log("⚠️ Successfully repaired truncated JSON response");
+        } catch {
+          console.log(`⚠️ Model output text non-JSON response: "${content.slice(0, 100)}..." — creating safe fallback response`);
+          parsed = {
+            actions: [],
+            summary: content.slice(0, 250),
+            requires_confirmation: false
+          };
+        }
       }
     }
 
