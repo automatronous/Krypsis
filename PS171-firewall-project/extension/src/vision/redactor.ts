@@ -53,6 +53,26 @@ function pixelate(
 }
 
 /**
+ * Deduplicate regions that cover substantially the same rectangle.
+ */
+export function deduplicateRegions(regions: RedactionRegion[]): RedactionRegion[] {
+  const result: RedactionRegion[] = [];
+  for (const r of regions) {
+    const duplicate = result.some(
+      (existing) =>
+        Math.abs(existing.x - r.x) <= 5 &&
+        Math.abs(existing.y - r.y) <= 5 &&
+        Math.abs(existing.width - r.width) <= 10 &&
+        Math.abs(existing.height - r.height) <= 10
+    );
+    if (!duplicate) {
+      result.push(r);
+    }
+  }
+  return result;
+}
+
+/**
  * Compute redaction regions from page context (DOM-based).
  * DPR scaling converts CSS pixel rects to physical screenshot pixel rects.
  */
@@ -65,105 +85,20 @@ export function computeRedactionRegions(context: PageContext): RedactionRegion[]
     const { x, y, width, height } = el.rect;
     if (width <= 0 || height <= 0) continue;
 
-    // Password / sensitive inputs → black out completely
-    if (
-      el.type === "password" ||
-      el.sensitive ||
-      /password|passcode|cvv|cvc|pin/i.test(
-        [el.name, el.placeholder, el.ariaLabel].filter(Boolean).join(" ")
-      )
-    ) {
-      regions.push({
-        x: Math.round(x * dpr),
-        y: Math.round(y * dpr),
-        width: Math.round(width * dpr),
-        height: Math.round(height * dpr),
-        redactionType: "BLACKOUT",
-        reason: `${el.type ?? el.tag} — password or sensitive control`
-      });
-      continue;
-    }
-
-    // Email / Phone / SSN / User identity input fields → pixelate
-    const fieldDescriptor = [el.name, el.placeholder, el.ariaLabel, el.type, el.id].filter(Boolean).join(" ").toLowerCase();
-    const hasEmailValue = el.value && /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i.test(el.value);
-
-    if (
-      el.type === "email" ||
-      el.type === "tel" ||
-      hasEmailValue ||
-      /email|e-mail|mail|phone|mobile|telephone|ssn|social-security/i.test(fieldDescriptor)
-    ) {
-      regions.push({
-        x: Math.round(x * dpr),
-        y: Math.round(y * dpr),
-        width: Math.round(width * dpr),
-        height: Math.round(height * dpr),
-        redactionType: "PIXELATE",
-        reason: "personal contact/identity field (email/phone/SSN)"
-      });
-      continue;
-    }
-
-    // Name, Address, DOB, Username fields OR visible full-name heading text (e.g. 'Rafael Peier') → pixelate
-    const textStr = (el.text ?? "").trim();
-    const isCapitalizedName = /^[A-Z][a-zA-Z'.-]{1,20}(?:\s+[A-Z][a-zA-Z'.-]{1,20}){1,3}$/.test(textStr);
-    const isProfileHeader = /h1|h2|h3|h4|h5|h6|author|profile|user|name|title|header/i.test(el.tag + " " + (el.id ?? "") + " " + fieldDescriptor);
-
-    if (
-      /\b(?:first[-_\s]?name|last[-_\s]?name|full[-_\s]?name|given[-_\s]?name|surname|family[-_\s]?name|middle[-_\s]?name)\b/i.test(fieldDescriptor) ||
-      /\b(?:username|user[-_\s]?name|display[-_\s]?name|nickname|handle)\b/i.test(fieldDescriptor) ||
-      /\b(?:address|street|city|state|zip|postcode|postal|country)\b/i.test(fieldDescriptor) ||
-      /\b(?:dob|date[-_\s]?of[-_\s]?birth|birthdate|birthday|birth[-_\s]?day)\b/i.test(fieldDescriptor) ||
-      (isProfileHeader && isCapitalizedName) ||
-      isCapitalizedName
-    ) {
-      regions.push({
-        x: Math.round(x * dpr),
-        y: Math.round(y * dpr),
-        width: Math.round(width * dpr),
-        height: Math.round(height * dpr),
-        redactionType: "PIXELATE",
-        reason: `person name or identity title (${textStr || "field"})`
-      });
-      continue;
-    }
-
-    // Credit-card / account number fields → pixelate
-    if (
-      /card|credit|account|iban|routing/i.test(
-        [el.name, el.placeholder, el.ariaLabel, el.type].filter(Boolean).join(" ")
-      )
-    ) {
-      regions.push({
-        x: Math.round(x * dpr),
-        y: Math.round(y * dpr),
-        width: Math.round(width * dpr),
-        height: Math.round(height * dpr),
-        redactionType: "PIXELATE",
-        reason: "financial field"
-      });
-      continue;
-    }
-
-    // All content photos / <img> / <picture> elements → blur for face & visual privacy
-    if (
-      (el.tag === "img" || el.tag === "picture") &&
-      width >= 30 &&
-      height >= 30
-    ) {
+    // As requested: only blur images (img / picture), leave everything else unredacted
+    if (el.tag === "img" || el.tag === "picture") {
       regions.push({
         x: Math.round(x * dpr),
         y: Math.round(y * dpr),
         width: Math.round(width * dpr),
         height: Math.round(height * dpr),
         redactionType: "BLUR",
-        reason: "photo / visual image media"
+        reason: "image media element"
       });
     }
   }
 
-  return regions;
+  return deduplicateRegions(regions);
 }
 
 /**

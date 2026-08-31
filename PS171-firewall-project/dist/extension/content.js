@@ -164,7 +164,7 @@
   function collectPageContext() {
     const elements = Array.from(
       document.querySelectorAll(
-        "button, a, input, textarea, select, [role], [contenteditable='true'], img, picture, h1, h2, h3, h4, h5, h6, p, div, span, [class*='name'], [class*='author'], [class*='profile'], [class*='user']"
+        "button, a, input, textarea, select, [role], [contenteditable='true'], img, picture, h1, h2, h3, h4, h5, h6, p, [class*='name'], [class*='author'], [class*='profile'], [class*='user']"
       )
     ).map((element, index) => {
       const input = element;

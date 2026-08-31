@@ -428,6 +428,18 @@ ${context.elements.map((e) => `${e.text ?? ""} ${e.ariaLabel ?? ""}`).join("\n")
     ctx.drawImage(tiny, 0, 0, tiny.width, tiny.height, x, y, w, h);
     ctx.imageSmoothingEnabled = true;
   }
+  function deduplicateRegions(regions) {
+    const result = [];
+    for (const r of regions) {
+      const duplicate = result.some(
+        (existing) => Math.abs(existing.x - r.x) <= 5 && Math.abs(existing.y - r.y) <= 5 && Math.abs(existing.width - r.width) <= 10 && Math.abs(existing.height - r.height) <= 10
+      );
+      if (!duplicate) {
+        result.push(r);
+      }
+    }
+    return result;
+  }
   function computeRedactionRegions(context) {
     const dpr = context.devicePixelRatio || 1;
     const regions = [];
@@ -435,71 +447,18 @@ ${context.elements.map((e) => `${e.text ?? ""} ${e.ariaLabel ?? ""}`).join("\n")
       if (!el.visible) continue;
       const { x, y, width, height } = el.rect;
       if (width <= 0 || height <= 0) continue;
-      if (el.type === "password" || el.sensitive || /password|passcode|cvv|cvc|pin/i.test(
-        [el.name, el.placeholder, el.ariaLabel].filter(Boolean).join(" ")
-      )) {
-        regions.push({
-          x: Math.round(x * dpr),
-          y: Math.round(y * dpr),
-          width: Math.round(width * dpr),
-          height: Math.round(height * dpr),
-          redactionType: "BLACKOUT",
-          reason: `${el.type ?? el.tag} \u2014 password or sensitive control`
-        });
-        continue;
-      }
-      const fieldDescriptor = [el.name, el.placeholder, el.ariaLabel, el.type, el.id].filter(Boolean).join(" ").toLowerCase();
-      const hasEmailValue = el.value && /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i.test(el.value);
-      if (el.type === "email" || el.type === "tel" || hasEmailValue || /email|e-mail|mail|phone|mobile|telephone|ssn|social-security/i.test(fieldDescriptor)) {
-        regions.push({
-          x: Math.round(x * dpr),
-          y: Math.round(y * dpr),
-          width: Math.round(width * dpr),
-          height: Math.round(height * dpr),
-          redactionType: "PIXELATE",
-          reason: "personal contact/identity field (email/phone/SSN)"
-        });
-        continue;
-      }
-      const textStr = (el.text ?? "").trim();
-      const isCapitalizedName = /^[A-Z][a-zA-Z'.-]{1,20}(?:\s+[A-Z][a-zA-Z'.-]{1,20}){1,3}$/.test(textStr);
-      const isProfileHeader = /h1|h2|h3|h4|h5|h6|author|profile|user|name|title|header/i.test(el.tag + " " + (el.id ?? "") + " " + fieldDescriptor);
-      if (/\b(?:first[-_\s]?name|last[-_\s]?name|full[-_\s]?name|given[-_\s]?name|surname|family[-_\s]?name|middle[-_\s]?name)\b/i.test(fieldDescriptor) || /\b(?:username|user[-_\s]?name|display[-_\s]?name|nickname|handle)\b/i.test(fieldDescriptor) || /\b(?:address|street|city|state|zip|postcode|postal|country)\b/i.test(fieldDescriptor) || /\b(?:dob|date[-_\s]?of[-_\s]?birth|birthdate|birthday|birth[-_\s]?day)\b/i.test(fieldDescriptor) || isProfileHeader && isCapitalizedName || isCapitalizedName) {
-        regions.push({
-          x: Math.round(x * dpr),
-          y: Math.round(y * dpr),
-          width: Math.round(width * dpr),
-          height: Math.round(height * dpr),
-          redactionType: "PIXELATE",
-          reason: `person name or identity title (${textStr || "field"})`
-        });
-        continue;
-      }
-      if (/card|credit|account|iban|routing/i.test(
-        [el.name, el.placeholder, el.ariaLabel, el.type].filter(Boolean).join(" ")
-      )) {
-        regions.push({
-          x: Math.round(x * dpr),
-          y: Math.round(y * dpr),
-          width: Math.round(width * dpr),
-          height: Math.round(height * dpr),
-          redactionType: "PIXELATE",
-          reason: "financial field"
-        });
-        continue;
-      }
-      if ((el.tag === "img" || el.tag === "picture") && width >= 30 && height >= 30) {
+      if (el.tag === "img" || el.tag === "picture") {
         regions.push({
           x: Math.round(x * dpr),
           y: Math.round(y * dpr),
           width: Math.round(width * dpr),
           height: Math.round(height * dpr),
           redactionType: "BLUR",
-          reason: "photo / visual image media"
+          reason: "image media element"
         });
       }
     }
-    return regions;
+    return deduplicateRegions(regions);
   }
   async function redactScreenshot(screenshotDataUrl, regions) {
     const bitmap = await loadBitmap(screenshotDataUrl);
