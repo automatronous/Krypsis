@@ -1,6 +1,35 @@
 {
-  "model": "HuggingFaceTB/SmolVLM-500M-Instruct",
-  "revision": "PIN_REQUIRED",
-  "status": "NOT_INSTALLED",
-  "note": "Inspect the official repository and pin exact ONNX assets plus SHA-256 checksums before download. This command intentionally does not invent filenames or download unverified binaries."
+  "models": [
+    {
+      "id": "face-detection",
+      "name": "BlazeFace (Face Detection)",
+      "model": "Xenova/blazeface-128",
+      "revision": "HEAD",
+      "status": "AVAILABLE",
+      "size_mb": 2,
+      "purpose": "Client-side face detection from screenshots",
+      "note": "Lightweight ONNX model for accurate face detection"
+    },
+    {
+      "id": "ocr-text-extraction",
+      "name": "EasyOCR (Text Extraction)",
+      "model": "Xenova/ocr_base",
+      "revision": "HEAD",
+      "status": "PLACEHOLDER",
+      "size_mb": 50,
+      "purpose": "Client-side optical character recognition from screenshots",
+      "note": "Extracts visible text regions for local redaction and server context enrichment. Verify ONNX compatibility with Transformers.js before pinning SHA-256."
+    },
+    {
+      "id": "server-vlm",
+      "name": "SmolVLM-500M-Instruct (Server VLM)",
+      "model": "HuggingFaceTB/SmolVLM-500M-Instruct",
+      "revision": "PIN_REQUIRED",
+      "status": "NOT_INSTALLED",
+      "size_mb": 500,
+      "purpose": "Server-side vision language model for action planning",
+      "note": "Inspect the official repository and pin exact ONNX assets plus SHA-256 checksums before download. This command intentionally does not invent filenames or download unverified binaries."
+    }
+  ]
 }
+

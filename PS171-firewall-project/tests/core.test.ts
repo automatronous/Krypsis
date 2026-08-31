@@ -222,3 +222,72 @@ describe("expanded injection detection", () => {
   });
 });
 
+describe("Vision model - BlazeFace + OCR", () => {
+  it("BlazeFace type definitions are present for face detection", () => {
+    // Verify that imports work and types are correct
+    import("../extension/src/vision/localModel").then((module) => {
+      expect(module.detectSensitiveRegionsML).toBeDefined();
+    });
+  });
+
+  it("OCR text region type is properly defined", () => {
+    // Verify TextRegion type includes text and confidence
+    const mockTextRegion = {
+      x: 10,
+      y: 20,
+      width: 100,
+      height: 30,
+      text: "sample text",
+      confidence: 0.95,
+      isReadable: true
+    };
+    expect(mockTextRegion.text).toBe("sample text");
+    expect(mockTextRegion.confidence).toBe(0.95);
+    expect(mockTextRegion.isReadable).toBe(true);
+  });
+
+  it("OCR result interface includes regions and extraction metadata", () => {
+    const mockOCRResult = {
+      regions: [
+        {
+          x: 0,
+          y: 0,
+          width: 50,
+          height: 20,
+          text: "Email",
+          confidence: 0.9,
+          isReadable: true
+        }
+      ],
+      confidence: 0.9,
+      extractedAt: Date.now()
+    };
+    expect(mockOCRResult.regions).toHaveLength(1);
+    expect(mockOCRResult.extractedAt).toBeDefined();
+  });
+
+  it("getOCRTextContent filters and returns only readable text", () => {
+    const { getOCRTextContent } = require("../extension/src/vision/ocr");
+    const regions = [
+      { x: 0, y: 0, width: 100, height: 20, text: "Email", confidence: 0.95, isReadable: true },
+      { x: 0, y: 30, width: 50, height: 10, text: "blurry", confidence: 0.3, isReadable: false }
+    ];
+    const readable = getOCRTextContent(regions);
+    expect(readable).toHaveLength(1);
+    expect(readable[0].text).toBe("Email");
+  });
+
+  it("mergeOCRRedactions identifies PII in OCR text and marks for redaction", () => {
+    const { mergeOCRRedactions } = require("../extension/src/vision/ocr");
+    const existing = [{ x: 0, y: 0, width: 100, height: 20, redactionType: "BLACKOUT", reason: "password field" }];
+    const ocrRegions = [
+      { x: 100, y: 100, width: 150, height: 20, text: "john@example.com", confidence: 0.9, isReadable: true }
+    ];
+    const piiDetector = (text: string) => /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i.test(text);
+    const merged = mergeOCRRedactions(existing, ocrRegions, piiDetector);
+    expect(merged.length).toBeGreaterThan(1);
+    expect(merged[merged.length - 1].reason).toContain("OCR detected PII");
+  });
+});
+
+

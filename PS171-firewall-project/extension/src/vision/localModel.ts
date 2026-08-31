@@ -4,29 +4,29 @@ import type { RedactionRegion } from "../types/domain";
 // Tell Transformers.js not to look for local file paths in a browser environment
 env.allowLocalModels = false;
 
-interface DetectionBox {
+interface FaceBox {
   xmin: number;
   ymin: number;
   xmax: number;
   ymax: number;
 }
 
-interface DetectionResult {
-  label: string;
+interface FaceDetectionResult {
   score: number;
-  box: DetectionBox;
+  box: FaceBox;
 }
 
 class VisionPipeline {
   static task = "object-detection";
-  // YOLOS is a Vision Transformer (ViT). Tiny version is ~30MB.
-  static model = "Xenova/yolos-tiny";
+  // BlazeFace: Lightweight face detector from MediaPipe, ~1-2MB ONNX.
+  // More accurate for faces than YOLOS, faster inference.
+  static model = "Xenova/blazeface-128";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static instance: any = null;
 
   static async getInstance() {
     if (this.instance === null) {
-      console.log("Loading local vision model (YOLOS ViT)...");
+      console.log("Loading face detection model (BlazeFace)...");
       // @ts-expect-error Transformers.js pipeline dynamic typing
       this.instance = await pipeline(this.task, this.model, {
         device: "webgpu"
@@ -43,15 +43,13 @@ export async function detectSensitiveRegionsML(
     const detector = await VisionPipeline.getInstance();
 
     // Run inference
-    const results: DetectionResult[] = await detector(imageDataUrl, {
-      threshold: 0.85
+    const results: FaceDetectionResult[] = await detector(imageDataUrl, {
+      threshold: 0.5 // BlazeFace optimal threshold: lower than YOLOS, catches more faces
     });
 
-    // COCO dataset labels to redact: 'person' (faces/avatars) or 'cell phone' (devices)
-    const sensitiveLabels = ["person", "cell phone"];
-    const filtered = results.filter((r) => sensitiveLabels.includes(r.label));
-
-    return filtered.map((r) => {
+    // BlazeFace detects faces only (no label, just coordinates + confidence)
+    // Convert to redaction regions with BLUR strategy
+    return results.map((r) => {
       const width = Math.round(r.box.xmax - r.box.xmin);
       const height = Math.round(r.box.ymax - r.box.ymin);
       return {
@@ -60,11 +58,11 @@ export async function detectSensitiveRegionsML(
         width,
         height,
         redactionType: "BLUR",
-        reason: `ML Vision Transformer (YOLOS) detected ${r.label} (${Math.round(r.score * 100)}%)`
+        reason: `BlazeFace detected face (${Math.round(r.score * 100)}% confidence)`
       };
     });
   } catch (err) {
-    console.warn("Local ML detection skipped or failed:", err);
+    console.warn("Local face detection skipped or failed:", err);
     return [];
   }
 }

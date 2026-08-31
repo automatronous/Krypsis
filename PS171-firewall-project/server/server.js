@@ -75,7 +75,7 @@ const OPENROUTER_MODELS = [
 ];
 
 // ---- Build prompt (shared) ----
-function buildPrompt(taskGoal, domSummary, pageUrl) {
+function buildPrompt(taskGoal, domSummary, pageUrl, ocrText) {
   const interactables = (domSummary.interactables ?? [])
     .slice(0, 80)
     .map((el) => {
@@ -84,13 +84,21 @@ function buildPrompt(taskGoal, domSummary, pageUrl) {
     })
     .join("\n");
 
+  // OCR text context: if available, include visible text to enrich VLM understanding
+  const ocrContext = ocrText && Array.isArray(ocrText) && ocrText.length > 0
+    ? `\nVISIBLE TEXT ON PAGE (extracted via OCR):\n${ocrText
+        .slice(0, 20)
+        .map((t) => `  - "${t.text.slice(0, 80)}" (confidence: ${(t.confidence * 100).toFixed(0)}%)`)
+        .join("\n")}`
+    : "";
+
   return `Analyze this web page screenshot for task: "${taskGoal}"
 
 PAGE: ${pageUrl}
 TITLE: ${domSummary.title ?? "unknown"}
 
 DOM INTERACTABLE ELEMENTS:
-${interactables || "None"}
+${interactables || "None"}${ocrContext}
 
 Generate browser actions to achieve the task. Return ONLY a valid JSON object:
 {
@@ -276,7 +284,7 @@ function parseModelContent(content, domSummary, taskGoal) {
 
 // ---- POST /analyze ----
 app.post("/analyze", async (req, res) => {
-  const { screenshot_b64, dom_summary, task_goal, redacted_regions, page_url } = req.body;
+  const { screenshot_b64, dom_summary, task_goal, redacted_regions, page_url, ocr_text } = req.body;
 
   if (!task_goal) {
     return res.status(400).json({ error: "task_goal is required" });
@@ -285,7 +293,7 @@ app.post("/analyze", async (req, res) => {
   const started = Date.now();
 
   try {
-    const promptText = buildPrompt(task_goal, dom_summary ?? {}, page_url ?? "unknown");
+    const promptText = buildPrompt(task_goal, dom_summary ?? {}, page_url ?? "unknown", ocr_text);
     const dataUrl = screenshot_b64
       ? (screenshot_b64.startsWith("data:") ? screenshot_b64 : `data:image/png;base64,${screenshot_b64}`)
       : null;

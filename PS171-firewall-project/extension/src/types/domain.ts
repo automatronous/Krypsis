@@ -159,6 +159,21 @@ export interface RedactionRegion extends Rect {
   reason: string;
 }
 
+/** OCR-extracted text region with position and confidence. */
+export interface TextRegion extends Rect {
+  text: string;
+  confidence: number;
+  isReadable: boolean; // true if text is legible enough for PII detection
+}
+
+/** Result of OCR extraction from a screenshot. */
+export interface OCRResult {
+  regions: TextRegion[];
+  confidence: number;
+  extractedAt: number;
+  error?: string;
+}
+
 export interface AgentAction {
   type: ActionType;
   selector?: string;

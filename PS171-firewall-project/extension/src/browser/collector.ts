@@ -30,41 +30,11 @@ function attributes(element: Element): Record<string, string> {
   );
 }
 export function collectPageContext(): PageContext {
-  const allElements = Array.from(
+  const elements: PageElement[] = Array.from(
     document.querySelectorAll(
-      "button, a, input, textarea, select, [role], [contenteditable='true'], img, picture, h1, h2, h3, h4, h5, h6, p, span, div, b, strong, td, th, li, [class*='name'], [class*='author'], [class*='profile'], [class*='user']"
+      "button, a, input, textarea, select, [role], [contenteditable='true'], img, picture, h1, h2, h3, h4, h5, h6, p, div, span, [class*='name'], [class*='author'], [class*='profile'], [class*='user']"
     )
-  );
-
-  const elementsToProcess = allElements.filter((el) => {
-    const tag = el.tagName.toLowerCase();
-    if (
-      [
-        "button",
-        "a",
-        "input",
-        "textarea",
-        "select",
-        "img",
-        "picture",
-        "h1",
-        "h2",
-        "h3",
-        "h4",
-        "h5",
-        "h6",
-        "p",
-        "b",
-        "strong"
-      ].includes(tag)
-    ) {
-      return true;
-    }
-    const txt = (el.textContent ?? "").trim();
-    return txt.length > 0 && txt.length <= 150 && el.children.length <= 2;
-  });
-
-  const elements: PageElement[] = elementsToProcess.map((element, index) => {
+  ).map((element, index) => {
     const input = element as HTMLInputElement;
     const generatedId = `ps171-${index + 1}`;
     const id = element.id || generatedId;
@@ -134,4 +104,34 @@ export function collectPageContext(): PageContext {
     viewportWidth: window.innerWidth,
     viewportHeight: window.innerHeight
   };
+}
+try {
+  void frame.contentDocument;
+  sameOrigin = true;
+} catch (error) {
+  sameOrigin = false;
+}
+let origin = "unknown";
+try {
+  origin = new URL(frame.src || location.href).origin;
+} catch (error) {
+  origin = "unknown";
+}
+return { src: frame.src, origin, sameOrigin };
+  });
+return {
+  url: location.href,
+  title: document.title,
+  pageText: (document.body?.innerText ?? "").slice(0, 20000),
+  elements,
+  forms,
+  iframes,
+  changedRegions: [],
+  screenshotRegions: [],
+  timestamp: Date.now(),
+  mutationCount: 0,
+  devicePixelRatio: window.devicePixelRatio || 1,
+  viewportWidth: window.innerWidth,
+  viewportHeight: window.innerHeight
+};
 }

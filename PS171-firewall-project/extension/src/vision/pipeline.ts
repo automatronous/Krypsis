@@ -4,6 +4,7 @@
  *
  *   1. Capture → screenshot from active tab
  *   2. Detect  → compute redaction regions from DOM context
+ *   2.5. OCR  → extract visible text regions from screenshot
  *   3. Redact  → apply canvas-based pixel redaction
  *   4. Transmit → POST sanitized data to local server
  *   5. Plan    → receive action list from server VLM
@@ -14,6 +15,7 @@
 import { captureActiveTab } from "./capture";
 import { computeRedactionRegions, redactScreenshot } from "./redactor";
 import { detectSensitiveRegionsML } from "./localModel";
+import { extractTextRegions, getOCRTextContent } from "./ocr";
 import { evaluatePolicy } from "../policy/policy";
 import { audit } from "../security/audit";
 import type {
@@ -44,6 +46,7 @@ async function transmitToServer(
     task_goal: string;
     redacted_regions: object[];
     page_url: string;
+    ocr_text?: Array<{ text: string; confidence: number }>;
   }
 ): Promise<ServerResponse> {
   const resp = await fetch(`${serverUrl}/analyze`, {
@@ -122,7 +125,17 @@ export async function runAgentPipeline(
   // --- Stage 2: Detect + Redact ---
   const domRegions = computeRedactionRegions(context);
   const mlRegions = await detectSensitiveRegionsML(screenshotDataUrl);
-  const regions = [...domRegions, ...mlRegions];
+  let regions = [...domRegions, ...mlRegions];
+
+  // --- Stage 2.5: OCR text extraction ---
+  let ocrTextContent: Array<{ text: string; confidence: number }> = [];
+  try {
+    const ocrRegions = await extractTextRegions(screenshotDataUrl);
+    ocrTextContent = getOCRTextContent(ocrRegions);
+    console.log(`OCR extracted ${ocrRegions.length} text regions`);
+  } catch (err) {
+    console.warn("OCR extraction encountered an issue, continuing without it:", err);
+  }
 
   let redactedDataUrl: string;
   let redactionCount: number;
@@ -152,7 +165,8 @@ export async function runAgentPipeline(
       dom_summary: buildDomSummary(context),
       task_goal: request.taskGoal,
       redacted_regions: regions,
-      page_url: context.url
+      page_url: context.url,
+      ocr_text: ocrTextContent.length > 0 ? ocrTextContent : undefined
     });
   } catch (err) {
     audit({
