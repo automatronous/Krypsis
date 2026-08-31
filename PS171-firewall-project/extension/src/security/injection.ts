@@ -16,14 +16,12 @@ const highRisk = [
   /https?:\/\/[^\s"'<>]{0,80}\?[^\s"'<>]{0,40}(?:data|token|secret|key|pass)=/i
 ];
 const mediumRisk = [
-  /assistant|agent|language model/i,
-  /follow these instructions/i,
-  /click|type|navigate|send|purchase/i,
-  /do not tell the user/i,
-  /you must|you should|you need to/i,
-  /your (?:task|goal|objective|job) is now/i,
-  /new (?:instructions|directives|commands|task)/i,
-  /remember to (?:always|never)/i
+  /\b(?:system\s+prompt|ai\s+assistant|language\s+model|llm\s+instructions)\b/i,
+  /follow\s+these\s+new\s+instructions/i,
+  /do\s+not\s+tell\s+the\s+user/i,
+  /your\s+(?:task|goal|objective|job)\s+is\s+now\s+to/i,
+  /new\s+(?:system\s+instructions|system\s+directives|override\s+commands)/i,
+  /remember\s+to\s+(?:always|never)\s+disregard/i
 ];
 export function assessInjection(
   text: string,

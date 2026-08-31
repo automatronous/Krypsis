@@ -162,11 +162,37 @@
     );
   }
   function collectPageContext() {
-    const elements = Array.from(
+    const allElements = Array.from(
       document.querySelectorAll(
-        "button, a, input, textarea, select, [role], [contenteditable='true'], img, picture, h1, h2, h3, h4, h5, h6, p, [class*='name'], [class*='author'], [class*='profile'], [class*='user']"
+        "button, a, input, textarea, select, [role], [contenteditable='true'], img, picture, h1, h2, h3, h4, h5, h6, p, span, div, b, strong, td, th, li, [class*='name'], [class*='author'], [class*='profile'], [class*='user']"
       )
-    ).map((element, index) => {
+    );
+    const elementsToProcess = allElements.filter((el) => {
+      const tag = el.tagName.toLowerCase();
+      if ([
+        "button",
+        "a",
+        "input",
+        "textarea",
+        "select",
+        "img",
+        "picture",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "p",
+        "b",
+        "strong"
+      ].includes(tag)) {
+        return true;
+      }
+      const txt = (el.textContent ?? "").trim();
+      return txt.length > 0 && txt.length <= 150 && el.children.length <= 2;
+    });
+    const elements = elementsToProcess.map((element, index) => {
       const input = element;
       const generatedId = `ps171-${index + 1}`;
       const id = element.id || generatedId;

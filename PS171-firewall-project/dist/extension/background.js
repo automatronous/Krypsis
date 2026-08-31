@@ -30,14 +30,12 @@
     /https?:\/\/[^\s"'<>]{0,80}\?[^\s"'<>]{0,40}(?:data|token|secret|key|pass)=/i
   ];
   var mediumRisk = [
-    /assistant|agent|language model/i,
-    /follow these instructions/i,
-    /click|type|navigate|send|purchase/i,
-    /do not tell the user/i,
-    /you must|you should|you need to/i,
-    /your (?:task|goal|objective|job) is now/i,
-    /new (?:instructions|directives|commands|task)/i,
-    /remember to (?:always|never)/i
+    /\b(?:system\s+prompt|ai\s+assistant|language\s+model|llm\s+instructions)\b/i,
+    /follow\s+these\s+new\s+instructions/i,
+    /do\s+not\s+tell\s+the\s+user/i,
+    /your\s+(?:task|goal|objective|job)\s+is\s+now\s+to/i,
+    /new\s+(?:system\s+instructions|system\s+directives|override\s+commands)/i,
+    /remember\s+to\s+(?:always|never)\s+disregard/i
   ];
   function assessInjection(text, source = "page text") {
     const evidence = [];
@@ -447,7 +445,96 @@ ${context.elements.map((e) => `${e.text ?? ""} ${e.ariaLabel ?? ""}`).join("\n")
       if (!el.visible) continue;
       const { x, y, width, height } = el.rect;
       if (width <= 0 || height <= 0) continue;
-      if (el.tag === "img" || el.tag === "picture") {
+      const textStr = (el.text ?? "").trim();
+      const valStr = (el.value ?? "").trim();
+      const combinedText = [textStr, valStr].filter(Boolean).join(" ");
+      const fieldDescriptor = [
+        el.name,
+        el.placeholder,
+        el.ariaLabel,
+        el.type,
+        el.id,
+        el.attributes?.class,
+        el.attributes?.autocomplete
+      ].filter(Boolean).join(" ").toLowerCase();
+      const isPasswordType = el.type === "password";
+      const isPasswordDescriptor = /password|passcode|cvv|cvc|pin|secret|token|api[_-]?key/i.test(fieldDescriptor);
+      const isPasswordText = /^(?:\*+|•+|password\s*:\s*\*+)$/i.test(combinedText);
+      if (isPasswordType || el.sensitive || isPasswordDescriptor || isPasswordText) {
+        regions.push({
+          x: Math.round(x * dpr),
+          y: Math.round(y * dpr),
+          width: Math.round(width * dpr),
+          height: Math.round(height * dpr),
+          redactionType: "BLACKOUT",
+          reason: "password or sensitive control"
+        });
+        continue;
+      }
+      const hasEmailRegex = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i.test(combinedText);
+      const isEmailField = el.type === "email" || /\b(?:email|e-mail|mail)\b/i.test(fieldDescriptor);
+      if (hasEmailRegex || isEmailField) {
+        regions.push({
+          x: Math.round(x * dpr),
+          y: Math.round(y * dpr),
+          width: Math.round(width * dpr),
+          height: Math.round(height * dpr),
+          redactionType: "PIXELATE",
+          reason: "email address or field"
+        });
+        continue;
+      }
+      const digitsOnly = combinedText.replace(/\D/g, "");
+      const hasPhoneRegex = /(?<!\d)(?:\+?\d{1,3}[ -]?)?\(?\d{2,4}\)?[ -]?\d{3,4}[ -]?\d{3,4}(?!\d)/.test(combinedText) && digitsOnly.length >= 7 && digitsOnly.length <= 15;
+      const isPhoneField = el.type === "tel" || /\b(?:phone|mobile|telephone|cell|contact[-_]?no)\b/i.test(fieldDescriptor);
+      if (hasPhoneRegex || isPhoneField) {
+        regions.push({
+          x: Math.round(x * dpr),
+          y: Math.round(y * dpr),
+          width: Math.round(width * dpr),
+          height: Math.round(height * dpr),
+          redactionType: "PIXELATE",
+          reason: "phone number or field"
+        });
+        continue;
+      }
+      const isNameFieldDescriptor = /\b(?:first[-_\s]?name|last[-_\s]?name|full[-_\s]?name|given[-_\s]?name|surname|family[-_\s]?name|middle[-_\s]?name|username|user[-_\s]?name|display[-_\s]?name|nickname|handle|profile[-_]?name|account[-_]?name)\b/i.test(
+        fieldDescriptor
+      );
+      const hasNamePrefix = /^(?:name\s*:|full\s*name\s*:|first\s*name\s*:|last\s*name\s*:|hello\s*,|hi\s*,|deliver\s+to\s+|account\s*holder\s*:)\s*([A-Z][a-zA-Z'.-]+(?:\s+[A-Z][a-zA-Z'.-]+)*)/i.test(
+        combinedText
+      );
+      const isCapitalizedFullName = /^[A-Z][a-zA-Z'.-]{1,20}(?:\s+[A-Z][a-zA-Z'.-]{1,20}){1,2}$/.test(textStr);
+      const isUserIdentityContext = /\b(?:name|user|profile|author|account|login|nav-line|customer|byline)\b/i.test(
+        fieldDescriptor + " " + (el.id ?? "")
+      );
+      if (isNameFieldDescriptor || hasNamePrefix || isUserIdentityContext && isCapitalizedFullName) {
+        regions.push({
+          x: Math.round(x * dpr),
+          y: Math.round(y * dpr),
+          width: Math.round(width * dpr),
+          height: Math.round(height * dpr),
+          redactionType: "PIXELATE",
+          reason: `person name or identity element (${textStr || "field"})`
+        });
+        continue;
+      }
+      const hasSsnRegex = /\b\d{3}-\d{2}-\d{4}\b/.test(combinedText);
+      const isFinancialField = /\b(?:creditcard|cc-number|card|iban|routing|account|acct|ssn|social-security|address|street|postcode|zipcode)\b/i.test(
+        fieldDescriptor
+      );
+      if (hasSsnRegex || isFinancialField) {
+        regions.push({
+          x: Math.round(x * dpr),
+          y: Math.round(y * dpr),
+          width: Math.round(width * dpr),
+          height: Math.round(height * dpr),
+          redactionType: "PIXELATE",
+          reason: "financial/SSN/address field"
+        });
+        continue;
+      }
+      if ((el.tag === "img" || el.tag === "picture") && width >= 20 && height >= 20) {
         regions.push({
           x: Math.round(x * dpr),
           y: Math.round(y * dpr),
